@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" fill="#0d0b18" rx="100"/>
+  <!-- Glowing Connection Ring -->
+  <circle cx="256" cy="256" r="180" stroke="url(#grad)" stroke-width="8" fill="none" opacity="0.3" />
+  <!-- GPS Trace Path -->
+  <path d="M 150 350 C 180 200, 320 400, 350 200" fill="none" stroke="url(#grad)" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Glowing GPS Pin -->
+  <circle cx="350" cy="200" r="16" fill="#10b981" filter="url(#glow)"/>
+  <!-- Expense Receipt Shape -->
+  <g transform="translate(180, 180)" filter="url(#glow)">
+    <rect width="120" height="150" rx="16" fill="#16132a" stroke="url(#grad)" stroke-width="6"/>
+    <!-- Receipt details -->
+    <line x1="25" y1="40" x2="95" y2="40" stroke="#8b5cf6" stroke-width="6" stroke-linecap="round"/>
+    <line x1="25" y1="70" x2="75" y2="70" stroke="#a78bfa" stroke-width="6" stroke-linecap="round"/>
+    <line x1="25" y1="100" x2="60" y2="100" stroke="#10b981" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

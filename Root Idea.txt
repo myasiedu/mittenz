@@ -1,0 +1,57 @@
+> **Role:** Act as a Senior Full-Stack Developer specializing in Google Workspace, Chrome Extension development, and Progressive Web App (PWA) architecture.
+> **Objective:** Build a "Zero-Friction" Expense & Mileage Logging System for a social worker.
+> **Project Components:**
+> 1. **Mobile Frontend (PWA):** A web app that works on Android/iOS. It must request location permissions.
+> * **Tracking Mode Toggle:** User can switch between "Geofence-Only" (trigger on arrival at pre-set locations) and "Full Trip Tracker" (continuous logging).
+> * **Dwell Time Logic:** If the user stops for X minutes (adjustable in Settings), trigger a prompt: "Did you just complete an expense? (Log Visit/Log Expense)."
+> * **Smart Logic:** If ignored, use the device's location to cross-reference a user-provided "Frequent Places" JSON database (e.g., if at [Shell Station], categorize as Fuel).
+> * **Data Entry:** Capture notes, photos, and auto-detect location data. Save all data to a Google Sheet via Apps Script (no paid third-party middleware).
+> 
+> 
+> 2. **Backend (Google Apps Script):**
+> * Expose an API endpoint to receive data from the PWA.
+> * Store all logs in a structured Google Sheet.
+> * Perform "Reverse Geocoding" (using Google Maps API) to turn coordinates into addresses.
+> * Maintain a "Frequent Places" database (User editable).
+> 
+> 
+> 3. **Desktop Companion (Chrome Extension - Manifest V3):**
+> * **Safety:** The extension must be "Portal-Specific." It can only inject data into fields you explicitly map (no reading of irrelevant social work case data).
+> * **UI:** A sidebar that reads the Google Sheet (via Sheets API) to show "Pending Expenses."
+> * **Automation:** Allow the user to click a "Fill" button, which populates the active web portal form fields based on the selected Google Sheet row.
+> 
+> 
+> 
+> 
+> **Constraints & Requirements:**
+> * **Cost:** Zero subscription costs. Use Google infrastructure only.
+> * **Privacy:** All logic must be local or via secure Google-only APIs. No sensitive data is to be stored on third-party servers.
+> * **Settings:** Create a global configuration object for the user to set: "Dwell Time Threshold," "Tracking Mode," and "Frequent Places DB."
+> * **Output:** Provide the file structure for the PWA (HTML/JS), the `Code.gs` for the Google Script, and the `manifest.json` / content script for the Chrome Extension. Include a deployment guide for hosting the PWA for free (e.g., using GitHub Pages).
+> 
+> 
+> **Immediate Task:** Please define the file architecture and provide the implementation for the "Dwell Time" and "Location Cross-Referencing" logic in the PWA.
+
+---
+
+### Implementation Roadmap
+
+Once the AI generates the code for you, here is how you will bring this to life:
+
+1. **Deployment (The "Free" Part):**
+* **Google Apps Script:** You will copy the backend code into a new project at `script.google.com`.
+* **PWA Hosting:** You will upload the PWA files to a free service like **GitHub Pages**. This gives you a URL (e.g., `yourname.github.io/expense-app`). You add this link to your phone's Home Screen, and it behaves exactly like a native app.
+
+
+2. **The "Frequent Places" Database:**
+* You will create a specific tab in your Google Sheet called `Locations_DB`.
+* You fill it with: `Name`, `Latitude`, `Longitude`, `Radius`, `Default_Category`.
+* The code will automatically look at your GPS, compare it to this list, and perform the "Best Guess" logic.
+
+
+3. **Security/Portal Interaction:**
+* The extension will be restricted via the `matches` or `host_permissions` setting in the `manifest.json`. You will tell the AI the specific URL of your company portal, and it will *only* function on that site.
+
+
+
+**Does this Master Prompt cover all your requirements, or would you like me to refine the technical specifications (e.g., specific API requirements for the Maps integration) before you execute it?**

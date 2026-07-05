@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Mittens",
+  "version": "1.0",
+  "description": "Autofills expense and mileage records into case management portals instantly.",
+  "icons": {
+    "16": "icon-128.png",
+    "48": "icon-128.png",
+    "128": "icon-128.png"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Mittens Expense Copilot",
+    "default_icon": {
+      "16": "icon-128.png",
+      "48": "icon-128.png",
+      "128": "icon-128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "options_ui": {
+    "page": "config.html",
+    "open_in_tab": true
+  }
+}

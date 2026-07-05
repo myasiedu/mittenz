@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Agency Portal - Expenses Sandbox</title>
+  <link rel="stylesheet" href="../pwa/styles.css">
+  <style>
+    body {
+      background-attachment: scroll;
+      padding: 3rem 1rem;
+    }
+
+    .app-container {
+      max-width: 600px;
+    }
+
+    .glass-card::before {
+      background: linear-gradient(90deg, var(--secondary), var(--accent));
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container">
+    <header>
+      <div>
+        <h1>Mock Social Work Portal<span class="brand-dot">.</span></h1>
+        <div class="subtitle">Expense Submission Sandbox</div>
+      </div>
+      <div class="log-badge badge-synced"
+        style="background: rgba(30,144,255,0.15); color: #1e90ff; border: 1px solid #1e90ff;">Sandbox</div>
+    </header>
+
+    <section class="glass-card">
+      <h2 class="card-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" style="stroke: var(--secondary)">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+        </svg>
+        Expense Settlement Form
+      </h2>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        This page simulates your company's expense portal. Open the Chrome Extension Sidebar, select a pending record,
+        and click **Autofill Current Form** to test the automatic selectors.
+      </p>
+
+      <form onsubmit="alert('Expense submitted inside sandbox!'); return false;">
+        <div class="form-group">
+          <label>Category (select[name="category"])</label>
+          <select name="category" class="form-control">
+            <option value="">-- Choose Category --</option>
+            <option value="Client Visit">Client Visit</option>
+            <option value="Fuel">Fuel</option>
+            <option value="Office Supplies">Office Supplies</option>
+            <option value="Meals / Coffee">Meals / Coffee</option>
+            <option value="Parking / Tolls">Parking / Tolls</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Expense Date (input[type="date"])</label>
+          <input type="date" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Settlement Amount (input[name="amount"])</label>
+          <input type="text" name="amount" placeholder="0.00" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Merchant / Place (input[name="vendor"])</label>
+          <input type="text" name="vendor" placeholder="Merchant" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Miles Driven (input[name="miles"])</label>
+          <input type="text" name="miles" placeholder="0.00" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Case Notes / Description (textarea[name="notes"])</label>
+          <textarea name="notes" placeholder="Enter justification..." class="form-control"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;">
+          Submit Expense Record
+        </button>
+      </form>
+    </section>
+  </div>
+
+</body>
+
+</html>

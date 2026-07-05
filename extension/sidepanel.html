@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Mittens Expense Copilot</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="lucide.js"></script>
+
+</head>
+
+<body>
+  <div class="app-container side-bar">
+
+    <div class="app-header">
+
+      <div class="logo-wrapper" style="cursor:pointer;"
+        onclick="window.sidePanel.setView('list'); document.getElementById('filter-status').value='pending'; window.sidePanel.renderAllLog();">
+        <i class="headerLogo" id="mittens-logo" data-lucide="cat"></i>
+        <span class="conn-status-dot" id="conn-dot"></span>
+      </div>
+
+      <div style=" margin-right: auto; ">
+        <div class="subtitle">Expense</div>
+        <div class="subtitle">Copilot</div>
+      </div>
+
+      <!-- VIEW SWITsCHER -->
+
+      <div id="switch-bar" class="view-switcher" role="group" aria-label="View mode">
+        <div class="rainbow-border-inner" style="padding:5px; gap:5px">
+          <button class="view-btn" id="view-btn-list" aria-pressed="false" style="position:relative;">
+            <i data-lucide="list" style="width: 15px; height: 15px;"></i>
+          </button>
+          <div class="view-btn" id="view-btn-cal" aria-pressed="true">
+            <i data-lucide="calendarDays" style="width: 15px; height: 15px;"></i>
+          </div>
+
+
+          <button class="view-btn" id="view-btn-config" title="Configuration" aria-pressed="false">
+            <i id="gear-icon" class="gear-rotate" data-lucide="settings" style="width: 15px; height: 15px;"></i>
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+
+
+
+    </div>
+
+
+
+    <!-- MAIN PANEL CARD -->
+    <section id="mainPanel" class="side-card">
+      <div class="side-card rainbow-border-inner">
+
+        <!-- LIST VIEW CONTAINER -->
+        <div id="view-list" style="height: 100%; display:none; width:100%" aria-label="List view">
+
+          <div class="list-filter-bar">
+            <select id="filter-year" class="filter-select">
+              <option value="all">All Yrs</option>
+            </select>
+            <select id="filter-month" class="filter-select">
+              <option value="all">All Mos</option>
+            </select>
+            <select id="filter-status" class="filter-select">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="synced">Synced</option>
+            </select>
+          </div>
+
+          <div id="view-list-items" class="list-view-container"></div>
+        </div>
+
+        <!-- CALENDAR VIEW CONTAINER -->
+        <div id="view-calendar" class="calendar-container" style="display:flex;">
+          <div class="calender-head">
+            <div class="cal-year-nav">
+              <span class="cal-btn" id="cal-year-prev" aria-label="Previous year" style="cursor:pointer">
+                <i data-lucide="chevron-left"></i>
+              </span>
+              <span class="cal-year-label" id="cal-year-label">2026</span>
+              <span class="cal-btn" id="cal-year-next" aria-label="Next year" style="cursor:pointer">
+                <i data-lucide="chevron-right"></i>
+              </span>
+            </div>
+            <div style="display:flex; flex-direction: column; width:100%; height:100%">
+              <div class="cal-month-grid" id="cal-month-nav"></div>
+              <div class="cal-month-summary">
+                <div class="stat">
+                  <i class="icon" data-lucide="calendar"></i>
+                  <span id="sum-days">0</span>d
+                  <span id="sum-visits">0</span>v
+                  <span id="sum-mileage">0</span>mi
+                  <span id="sum-exp-count">0</span>ex
+                </div>
+
+
+                <div class="stat hide">
+                  <i class="icon"></i>
+                  <span id="sum-synced">0</span>/
+                  <span id="sum-exp-sum">0</span>Claimed
+                </div>
+                <div class="stat">
+                  <i class="icon" data-lucide="clock"></i>
+                  <span id="sum-pending">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cal-grid" id="cal-grid"></div>
+
+
+        </div>
+
+        <!-- CONFIGURATION PANEL -->
+        <div id="configPanel" class="side-card"
+          style="display:none; border-radius:0px; flex-direction:column; overflow:hidden; border: none;gap: 10px; background: transparent;">
+
+          <div style="display:flex; align-items:center; gap:8px; width:100%;">
+            <button id="btn-open-settings-tab" class="view-btn" title="Open in New Tab"
+              style="padding: 6px; border: 1px solid var(--border-glow); border-radius: 8px; cursor: pointer;">
+              <i data-lucide="external-link" style="width: 16px; height: 16px;"></i>
+            </button>
+
+            <h2 style="font-size:1rem; font-weight:700; margin:0; flex-grow: 1;">Configuration</h2>
+
+            <button id="cfg-theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle light/dark theme"
+              style="width: 32px; height: 32px;">
+              <i data-lucide="moon" id="cfg-icon-moon" style="width: 14px; height: 14px;"></i>
+              <i data-lucide="sun" id="cfg-icon-sun" style="width: 14px; height: 14px; display:none;"></i>
+            </button>
+
+          </div>
+
+          <div class="side-card-inner">
+            <!-- COMPONENT 1: LINKING THE SHEET -->
+            <div class="config-card link"
+              style="border: 1px solid var(--border-glow); padding: 0.85rem; border-radius: 10px; flex-shrink: 0;">
+              <h3 class="card-title"
+                style="font-size:0.85rem; display:flex; align-items:center; gap:6px; margin-bottom:0.5rem; color: var(--text-primary);">
+                <i data-lucide="link" style="width:16px; height:16px; stroke:var(--primary);"></i>
+                <span style="width: 100%;">App Connection Link</span>
+
+
+                <span id="btn-refresh-header" class="log-badge badge-synced">Connected</span>
+              </h3>
+              <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                Provide the same Google Apps Script Web App URL and Token used on your PWA mobile application.
+              </div>
+              <div class="form-group" style="margin-bottom:0.75rem;">
+                <label for="cfg-webapp-url"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Google Apps Script WebApp
+                  URL</label>
+                <input type="url" id="cfg-webapp-url" placeholder="https://script.google.com/macros/s/.../exec"
+                  class="form-control" style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.5rem;">
+                <label for="cfg-secret-key"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Shared API Token
+                  Key</label>
+                <input type="password" id="cfg-secret-key" placeholder="Enter secure shared secret token"
+                  class="form-control" style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+            </div>
+
+            <!-- COMPONENT 2: SETTING UP THE INPUT (FIELD SELECTORS) -->
+            <div class="config-card inputs"
+              style="border: 1px solid var(--border-glow); padding: 0.85rem; border-radius: 10px; flex-shrink: 0;">
+              <h3 class="card-title"
+                style="font-size:0.85rem; display:flex; align-items:center; gap:6px; margin-bottom:0.5rem; color: var(--text-primary);">
+                <i data-lucide="layers" style="width:16px; height:16px; stroke:var(--secondary);"></i>
+                Target Field Selectors
+                <button id="btn-load-defaults" class="btn btn-outline btn-small">
+                  Defaults
+                </button>
+              </h3>
+              <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                Map fields from Google Sheet rows to specific HTML input fields on your agency's portal.
+              </div>
+
+
+
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-amount"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Amount
+                  Selector</label>
+                <input type="text" id="sel-amount" placeholder="e.g. input[name='amount']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-date" style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Date
+                  Selector</label>
+                <input type="text" id="sel-date" placeholder="e.g. input[type='date']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-category"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Category Selector</label>
+                <input type="text" id="sel-category" placeholder="e.g. select[name='category']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-vendor"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Vendor
+                  /
+                  Description Selector</label>
+                <input type="text" id="sel-vendor" placeholder="e.g. input[name='description']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-notes" style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Notes
+                  /
+                  Purpose Selector</label>
+                <input type="text" id="sel-notes" placeholder="e.g. textarea[name='notes']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="sel-distance"
+                  style="font-size:0.75rem; font-weight: 600; color: var(--text-secondary);">Distance (Miles)
+                  Selector</label>
+                <input type="text" id="sel-distance" placeholder="e.g. input[name='miles']" class="form-control"
+                  style="padding:0.5rem 0.75rem; font-size:0.8rem; border-radius:8px;">
+              </div>
+            </div>
+
+            <!-- SAVE BUTTON -->
+            <button id="btn-save-config" class="btn btn-secondary"
+              style="width:100%; padding:0.75rem; font-size:0.9rem; margin-top:0.25rem; justify-content: center; cursor: pointer;">
+              Save Configuration
+            </button>
+
+          </div>
+        </div>
+
+
+      </div>
+
+      <div class="menu" id="menu">
+        <button id="btn-theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle light/dark theme">
+          <i data-lucide="moon" id="sp-icon-moon" style="width: 18px; height: 18px;"></i>
+          <i data-lucide="sun" id="sp-icon-sun" style="width: 18px; height: 18px; display:none;"></i>
+        </button>
+        <button id="btn-open-settings" class="theme-toggle" title="Settings" aria-label="Open settings">
+          <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
+        </button>
+        <button id="btn-refresh-extension" class="theme-toggle" title="Refresh" aria-label="Refresh">
+          <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+
+
+
+    </section>
+
+    <!-- MONTHLY SUMMARY POPUP OVERLAY (bottom sheet) -->
+    <div id="month-popup-overlay" class="day-popup-overlay" role="dialog" aria-modal="true" aria-label="Month detail">
+      <div class="day-popup" id="month-popup">
+        <div class="popup-handle"></div>
+        <div class="popup-date-title" id="popup-date-title">Monthly Summary</div>
+        <div id="month-popup-items-container"></div>
+      </div>
+    </div>
+
+    <!-- DAY POPUP OVERLAY (bottom sheet) -->
+    <div id="day-popup-overlay" class="day-popup-overlay" role="dialog" aria-modal="true" aria-label="Day detail">
+      <div class="day-popup" id="day-popup">
+        <div class="popup-handle"></div>
+        <div class="popup-date-title" id="popup-date-title">Monday, 25 May 3026</div>
+        <div id="popup-items-container"></div>
+      </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+
+</html>

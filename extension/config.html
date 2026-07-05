@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <title>MavisExpense - Companion Settings</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background-attachment: scroll;
+      padding: 2rem 1rem;
+    }
+
+    .app-container {
+      max-width: 600px;
+    }
+
+    .badge-synced {
+      background: rgba(16, 185, 129, 0.15) !important;
+      color: var(--secondary) !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container" style="max-width:100%;">
+    <header>
+      <div>
+        <h1>Companion Setup<span class="brand-dot">.</span></h1>
+        <div class="subtitle">Desktop Integration Manager</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <div id="status-badge" class="log-badge badge-synced">Active</div>
+        <button id="cfg-theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle light/dark theme"
+          style="width:36px;height:36px;">
+          <svg id="cfg-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg id="cfg-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="display:none;width:16px;height:16px;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <div style="display: flex; gap:10px; width:100%">
+
+      <section class="config-card inputs">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="stroke: var(--secondary)">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          Enterprise Portal Field Selectors
+        </h2>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+          Map the fields from your Google Sheet rows to specific HTML input fields on your agency's portal. Use standard
+          CSS selectors (e.g. <code>#amount-field</code>, <code>input[name="vendor"]</code>, or
+          <code>.expense-date</code>).
+        </div>
+
+        <button id="btn-load-defaults" class="btn" style="flex:1;">
+          Load Defaults
+        </button>
+
+        <div class="form-group">
+          <label for="sel-amount">Amount Selector</label>
+          <input type="text" id="sel-amount" placeholder="e.g. input[name='amount']" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="sel-date">Date Selector</label>
+          <input type="text" id="sel-date" placeholder="e.g. input[type='date']" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="sel-category">Category Selector</label>
+          <input type="text" id="sel-category" placeholder="e.g. select[name='category']" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="sel-vendor">Vendor / Description Selector</label>
+          <input type="text" id="sel-vendor" placeholder="e.g. input[name='description']" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="sel-notes">Notes / Purpose Selector</label>
+          <input type="text" id="sel-notes" placeholder="e.g. textarea[name='notes']" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="sel-distance">Distance (Miles) Selector</label>
+          <input type="text" id="sel-distance" placeholder="e.g. input[name='miles']" class="form-control">
+        </div>
+      </section>
+
+      <div style="gap:10px; display:flex; flex-direction: column;">
+
+
+        <section class="config-card link">
+          <h2 class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" style="stroke: var(--primary)">
+              <rect x="2" y="2" width="20" height="20" rx="4" />
+              <path d="M12 2v20M2 12h20" />
+            </svg>
+            App Connection Link
+          </h2>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Provide the same Google Apps Script Web App URL and Token used on your PWA mobile application.
+          </div>
+
+          <div class="form-group">
+            <label for="ext-webapp-url">Google Apps Script WebApp URL</label>
+            <input type="url" id="ext-webapp-url" placeholder="https://script.google.com/macros/s/.../exec"
+              class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label for="ext-secret-key">Shared API Token Key</label>
+            <input type="password" id="ext-secret-key" placeholder="Enter secure shared secret token"
+              class="form-control">
+          </div>
+        </section>
+
+        <button id="btn-save-config" class="btn" style="width:100%;">
+          Save Companion Configuration
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+</body>
+
+</html>
