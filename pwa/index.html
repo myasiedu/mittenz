@@ -74,26 +74,25 @@
 
         </h2>
         <!-- View Switcher -->
-        <div class="pwa-view-switcher" role="group" aria-label="View mode">
+        <div class="header-switch" id="history-switcher" role="group" aria-label="View mode">
 
-
-          <button class="pwa-view-btn active" id="pwa-view-btn-list" aria-pressed="true" title="List view">
+          <button class="switch-btn active" id="pwa-view-btn-list" aria-pressed="true" title="List view">
             <svg data-lucide="list" width="15" height="15"></svg>
             <span id="history-title-text" class="text" style="display:flex;">Visit List</span>
           </button>
-          <button class="pwa-view-btn" id="pwa-view-btn-cal" aria-pressed="false" title="Calendar view">
+          <button class="switch-btn" id="pwa-view-btn-cal" aria-pressed="false" title="Calendar view">
             <svg data-lucide="calendar-days" width="15" height="15"></svg>
             <span id="calender-title-text" class="text" style="display:flex;">Calendar</span>
           </button>
 
 
 
-          <button id="btn-archive-view" style="margin-left: auto;" class="theme-toggle" title="View Archive"
+          <div id="btn-archive-view" style="margin-left: auto;" class="switch-btn-rnd" title="View Archive"
             aria-label="View Archive">
             <svg id="icon-archive" data-lucide="archive" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             </svg>
-          </button>
+          </div>
 
         </div>
       </div>
@@ -180,143 +179,158 @@
          TAB 2 — RECORD PAGE (EXPENSE FORM)
     ════════════════════════════════════════════════════════ -->
     <main id="tab-record" class="tab-content active" role="main" aria-label="Record expense"
-      style="scrollbar-width: none;">
+      style="scrollbar-width: none; height: 70%;">
+
+      <!-- ACTIVE VISIT BAR -->
+      <section id="visit-bar-active" class="header-switch">
+
+        <div class="visit-bar-info">
+          <span class="visit-bar-meta" id="vbar-date"></span>
+          <span class="visit-bar-dest" id="vbar-destination">Destination</span>
+
+          <span id="vbar-id"
+            style=" display:none; font-size:0.72rem; font-family:monospace; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 500; vertical-align: middle;"></span>
+          <span style="display: none;" id="vbar-status">Open</span>
+        </div>
 
 
-      <!-- NEW VISIT CARD (Start or Select) -->
-     
-
-        <section id="new-visit" class="glass-card" style="background-color: var(--primary-dark);">
-          <h2 class="card-title" style="justify-content: center; color: white;">
-            New Visit
-          </h2>
-
-          <div class="form-group">
-            <div class="btn-row" style="margin: 0.5rem 0;">
-              <button class="btn btn-primary" style="display:none; width: 100%;" onclick="app.startVisit()">
-                Start New Visit
-              </button>
-            </div>
-
-            <input type="date" id="visit-date" class="form-control" style="justify-content: center;">
-          </div>
-
-          <div class="form-group">
-            <select id="visit-destination" class="form-control" style="text-align: center;"
-              placeholder="Start New Visit">
-
-            </select>
-          </div>
-
-
-
-          <div class="form-group" id="past-visit-container"
-            style="margin-top: 2rem; border-top: 1px solid var(--border-glow); padding-top: 1rem;">
-
-            <select id="visit-select-past" class="form-control" style="text-align: center;"
-              onchange="app.selectPastVisit(this.value)" placeholder="OLD VISITS">
-
-            </select>
-
-          </div>
-
-          <div id="no-visit-container" style="margin-top: 2rem; padding-top: 1rem; display:none">
-            <button type="button" class="btn btn-danger" style="width: 100%;" onclick="app.logAsOrphan()">
-              Log as "No Visit" (Orphan)
-            </button>
-          </div>
-
-   
+        <div class="switch-btn" style="background: var(--primary); color: white;" onclick="app.endVisit()"
+          id="btn-end-visit">
+          End Visit
+        </div>
       </section>
 
-      <!-- ─── EXPENSE PHOTO ──────────────────────────────────── -->
+      <!-- NEW VISIT CARD (Start or Select) -->
 
-      <div id="frame" class="photo-frame">
+      <div id="new-visit" class="header-switch">
+        <select id="visit-select-past" class="switch-btn"
+          style="text-align: center; width: calc(45% - 0.2rem); flex: 0 0 calc(45% - 0.2rem);"
+          onchange="app.selectPastVisit(this.value)" placeholder="OLD VISITS">
+        </select>
 
-        <!-- ACTIVE VISIT BAR -->
-        <section id="visit-bar-active" class="visit-bar">
+        <div id="start-new-visit" class="switch-btn active"
+          style="width: calc(55% - 0.2rem); flex: 0 0 calc(55% - 0.2rem); display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; position: relative;">
+          <select class="switch-btn active" id="visit-destination"
+            style="text-align: center; width: calc(100% - 30px); border: none; background: transparent; padding: 0; outline: none; box-shadow: none;"
+            onchange="app.startVisit()" placeholder="Start New Visit">
+          </select>
 
-          <div class="visit-bar-info">
-            <div class="visit-bar-dest">
-              <span id="vbar-destination">Destination</span>
-              <span id="vbar-id"
-                style=" display:none; font-size:0.72rem; font-family:monospace; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 500; vertical-align: middle;"></span>
-            </div>
-            <div class="visit-bar-meta">
-              <span id="vbar-date"></span>
-              <span style="display: none;" id="vbar-status">Open</span>
-            </div>
+          <!-- Calendar SVG (visibly replaces the date input) -->
+          <div class="calendar-trigger-btn"
+            style="cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"
+            onclick="const d = document.getElementById('visit-date'); d.focus(); try { d.showPicker(); } catch(e) {}">
+            <svg width="15" height="15" stroke="white" stroke-width="2" data-lucide="calendar"></svg>
           </div>
 
-
-          <button class="btn btn-primary" onclick="app.endVisit()" id="btn-end-visit">
-            End Visit
-          </button>
-
-
-        </section>
-
-        <label class="receipt-capture-btn" for="exp-receipt" id="receipt-label" style="position:relative;">
-          <label class="ai-toggle">
-            <input type="checkbox" id="ai-mode-toggle" onchange="app.toggleAiMode(this.checked)" checked>
-            <span class="ai-slider"> </span>
-            <span class="ai-toggle-label">AI</span>
-          </label>
-          <svg width="82" height="82" stroke="currentColor" stroke-width="1" data-lucide="camera"></svg>
-        </label>
-
-        <div id="receipt-preview-wrap"
-          style="display:none; position:absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
-          <img id="receipt-preview" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
-
-          <div id="ai-shimmer-overlay" class="shimmer-overlay" style="display:none;">
-            <div class="shimmer"></div>
-            <div class="shimmer-text">AI is extracting data...</div>
-          </div>
-
-          <button type="button" class="receipt-remove-btn" onclick="app.removeReceipt()" title="Remove photo">✕</button>
+          <!-- Hidden Date Input -->
+          <input type="date" id="visit-date"
+            style="position: absolute; right: 10px; opacity: 0; pointer-events: none; width: 24px; height: 24px; border: none; background: transparent; padding: 0;">
         </div>
-        <input type="file" id="exp-receipt" accept="image/*" capture="environment" style="display:none;">
 
-        <svg id="detail-toggle" class="detail-toggle" onclick="app.expenseMode()" width="50" height="50"
-          stroke="currentColor" stroke-width="2" data-lucide="form" ;></svg>
-
-
-
-
-        <!-- ─── EXPENSE DEATAILS FORM ──────────────────────────────────── -->
-
-
-        <form id="expense-form-details" onsubmit="app.saveExpense(event)" class="expense-form-details"
-          style="display:none; min-height: auto;">
-
-          <span id="expense-form-title"> <svg class="form-close" onclick="app.expenseMode()" width="50" height="50"
-              stroke="currentColor" stroke-width="2" data-lucide="x" ;></svg></span>
-          <input type="number" id="exp-amount" class="form-control" step="0.01" min="0"
-            placeholder="Receipt Amount: £0.00">
-          <select id="exp-category" class="form-control" placeholder="category" required>
-            <option value="Snacks"> Snacks</option>
-            <option value="Fuel"> Fuel</option>
-            <option value="Hotel"> Hotel / Accommodation</option>
-            <option value="Tolls"> Tolls / Parking</option>
-            <option value="Other"> Other</option>
-          </select>
-
-          <input type="text" id="exp-vendor" class="form-control"
-            placeholder="Vendor / Merchant e.g. Shell, Costa Coffee">
-
-
-          <textarea id="exp-notes" class="form-control" rows="2" placeholder="Brief Note"></textarea>
-
-          <select id="log-select-visit" class="form-control linked-visit-row" onchange="app.onLinkedVisitChange()">
-            <option value="">-- Select a visit --</option>
-          </select>
-
-
-
-        </form>
+        <div id="no-visit-container" style="margin-top: 2rem; padding-top: 1rem; display:none; width: 100%;">
+          <button type="button" class="btn btn-danger" style="width: 100%;" onclick="app.logAsOrphan()">
+            Log as "No Visit" (Orphan)
+          </button>
+        </div>
 
       </div>
+
+
+
+
+      <!-- ─── EXPENSE CARD CAROUSEL ────────────────────────── -->
+
+      <div id="card-carousel-wrapper">
+        <!-- Swipe hint dots -->
+
+
+        <!-- scrollable track — cards injected here by JS -->
+        <div id="card-track">
+
+          <!-- CARD 0 — New Expense (always present, injected on init) -->
+          <div class="expense-card" data-card-index="0">
+            <div class="card-inner" id="card-inner-0">
+
+              <!-- FRONT: camera capture + receipt preview -->
+              <div class="card-face card-front" id="frame">
+
+                <label class="receipt-capture-btn" for="exp-receipt" id="receipt-label" style="position:relative;">
+                  <label class="ai-toggle">
+                    <input type="checkbox" id="ai-mode-toggle" onchange="app.toggleAiMode(this.checked)" checked>
+                    <span class="ai-slider"> </span>
+                    <span class="ai-toggle-label">AI</span>
+                  </label>
+                  <svg width="82" height="82" stroke="currentColor" stroke-width="1" data-lucide="camera"></svg>
+                </label>
+
+                <div id="receipt-preview-wrap"
+                  style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:1;">
+                  <img id="receipt-preview" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;">
+
+                  <div id="ai-shimmer-overlay" class="shimmer-overlay" style="display:none;">
+                    <div class="shimmer"></div>
+                    <div class="shimmer-text">AI is extracting data...</div>
+                  </div>
+
+                  <button type="button" class="receipt-remove-btn" onclick="app.removeReceipt()"
+                    title="Remove photo">✕</button>
+                </div>
+
+                <input type="file" id="exp-receipt" accept="image/*" capture="environment" style="display:none;">
+
+                <svg id="detail-toggle" class="detail-toggle" onclick="app.expenseMode()" width="50" height="50"
+                  stroke="currentColor" stroke-width="2" data-lucide="form"></svg>
+
+              </div><!-- /.card-front -->
+
+              <!-- BACK: expense details form -->
+              <div class="card-face card-back">
+
+                <!-- ─── EXPENSE DETAILS FORM ─────────────────────── -->
+                <form id="expense-form-details" onsubmit="app.saveExpense(event)" class="expense-form-details">
+
+                  <span id="expense-form-title">
+                    <svg class="form-close" onclick="app.expenseMode()" width="50" height="50" stroke="currentColor"
+                      stroke-width="2" data-lucide="x"></svg>
+                  </span>
+
+                  <input type="number" id="exp-amount" class="form-control" step="0.01" min="0"
+                    placeholder="Receipt Amount: £0.00">
+
+                  <select id="exp-category" class="form-control" placeholder="category" required>
+                    <option value="Snacks"> Snacks</option>
+                    <option value="Fuel"> Fuel</option>
+                    <option value="Hotel"> Hotel / Accommodation</option>
+                    <option value="Tolls"> Tolls / Parking</option>
+                    <option value="Other"> Other</option>
+                  </select>
+
+                  <input type="text" id="exp-vendor" class="form-control"
+                    placeholder="Vendor / Merchant e.g. Shell, Costa Coffee">
+
+                  <textarea id="exp-notes" class="form-control" rows="2" placeholder="Brief Note"></textarea>
+
+                  <select id="log-select-visit" class="form-control linked-visit-row"
+                    onchange="app.onLinkedVisitChange()">
+                    <option value="">-- Select a visit --</option>
+                  </select>
+
+                </form>
+
+                <svg id="detail-toggle" class="photo-toggle" onclick="app.expenseMode()" width="50" height="50"
+                  stroke="currentColor" stroke-width="2" data-lucide="camera"></svg>
+
+              </div><!-- /.card-back -->
+
+            </div><!-- /.card-inner -->
+          </div><!-- /.expense-card[0] -->
+
+        </div><!-- /#card-track -->
+
+
+
+      </div><!-- /#card-carousel-wrapper -->
+      <div id="card-dots"></div>
     </main>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -338,7 +352,7 @@
         </button>
 
 
-        <button id="btn-theme-toggle" style="margin-left: auto;" class="theme-toggle" title="Toggle theme"
+        <button id="btn-theme-toggle" style="margin-left: auto;" class="switch-btn-rnd" title="Toggle theme"
           aria-label="Toggle light/dark theme">
           <svg id="icon-moon" data-lucide="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">

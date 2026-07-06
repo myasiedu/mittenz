@@ -31,7 +31,7 @@
 
   --nav-height: 68px;
   --header-height: 56px;
-  --radius-card: 18px;
+  --radius-card: 25px;
   --radius-sm: 10px;
   --transition: 0.18s ease;
 }
@@ -172,7 +172,23 @@ body {
   gap: 8px;
   cursor: pointer;
   user-select: none;
-  background: var(--primary);
+  background: var(--secondary);
+  color: white;
+  border-radius: 10px;
+  padding: 10px;
+  z-index: 2;
+}
+
+.photo-toggle {
+  bottom: 20px;
+  left: 20px;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-card-hover);
   color: white;
   border-radius: 10px;
   padding: 10px;
@@ -208,7 +224,7 @@ body {
 .ai-toggle-label {
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .ai-toggle input {
@@ -238,17 +254,17 @@ body {
 }
 
 .ai-toggle input:checked+.ai-slider {
-  background-color: var(--primary);
-  border-color: var(--primary);
+  background-color: var(--secondary);
+  border-color: var(--secondary);
 }
 
 .ai-toggle input:checked+.ai-slider:before {
   transform: translateX(20px);
-  background-color: white;
+  background-color: rgb(0, 0, 0);
 }
 
 .ai-toggle input:checked~.ai-toggle-label:last-child {
-  color: var(--primary);
+  color: var(--text-muted);
 }
 
 /* ── Shimmer Animation ── */
@@ -394,7 +410,7 @@ body {
 /* Disabled/Grayed-out States */
 .nav-item:disabled,
 .nav-item.disabled-nav {
-  opacity: 0 !important;
+  opacity: 0.40 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
   color: rgba(255, 255, 255, 0.276)
@@ -549,6 +565,426 @@ body {
   gap: 0.5rem;
 }
 
+/* ── Card Carousel Wrapper ──────────────────────────────── */
+#card-carousel-wrapper {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#card-track {
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  flex-grow: 1;
+  min-height: 0;
+  overflow: visible;
+  align-items: stretch;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+#card-track.dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+/* Disable card transitions while actively dragging */
+#card-track.dragging .expense-card {
+  transition: none !important;
+}
+
+/* ── Individual Expense Card ────────────────────────────── */
+.expense-card {
+  flex-shrink: 0;
+  width: 88vw;
+  max-width: 520px;
+  perspective: 1200px;
+  border-radius: var(--radius-card);
+  display: flex;
+  align-items: stretch;
+  /* Smooth scale & opacity when snapping between cards */
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+  transform-origin: center center;
+  height: 500px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: inherit;
+}
+
+.card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.card-front {
+  z-index: 2;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* ── Past-expense front face (cards 1..N) ───────────────── */
+.expense-card-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.expense-card-img.loaded {
+  opacity: 1;
+}
+
+.expense-card-img.error {
+  display: none;
+}
+
+.expense-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card-hover);
+  color: var(--text-muted);
+}
+
+/* ─── Fallback card content (gradient backdrop + info) ──────────── */
+.fallback-card-content {
+  position: absolute;
+  inset: 0;
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.fallback-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fallback-vendor-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.fallback-category-pill {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.fallback-card-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.fallback-amount-large {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  color: #fff;
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.fallback-vendor-large {
+  font-size: 0.95rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fallback-notes-bubble {
+  margin-top: 0.8rem;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 2px solid;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.73rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.65);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fallback-card-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.fallback-date-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.expense-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.2rem 1rem 1rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  color: #fff;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.expense-card-amount {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.expense-card-vendor {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.expense-card-category {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+/* flip-to-details button on past expense front face */
+.expense-card-flip-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 4;
+  transition: background var(--transition);
+}
+
+.expense-card-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* back face of past expense cards */
+.expense-card-detail-back {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--bg-card);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.expense-card-detail-back .detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.expense-card-detail-back .detail-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.expense-card-detail-back .detail-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.expense-card-detail-back .detail-amount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -1px;
+}
+
+/* back-face close button for past expense cards */
+.expense-detail-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  margin-left: auto;
+  margin-bottom: 0.25rem;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+
+.expense-detail-close:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ── Dot indicator ──────────────────────────────────────── */
+#card-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 2px;
+  flex-shrink: 0;
+}
+
+.card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dot-color, var(--border-glow));
+  transition:
+    width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.4s ease,
+    opacity 0.4s ease;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.card-dot.active {
+  width: 22px;
+  border-radius: 4px;
+  background: var(--dot-color, var(--primary));
+  opacity: 1;
+}
+
+/* Separator between visit dot-groups */
+.card-dot-sep {
+  width: 1.5px;
+  height: 12px;
+  background: var(--border-glow);
+  border-radius: 1px;
+  opacity: 0.5;
+  margin: 0 2px;
+}
+
+/* Visit badge pill on card front overlay */
+.exp-visit-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+  opacity: 0.92;
+}
+
+/* Visit context strip on card back */
+.detail-visit-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+/* ── Keep #frame (card-front on card 0) behaving exactly as before ── */
+#frame {
+  display: flex;
+  flex-direction: column;
+  border: 0px solid var(--border-glow);
+  border-radius: var(--radius-card);
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* legacy .photo-frame kept for any residual references */
 .photo-frame {
   display: flex;
   flex-direction: column;
@@ -565,6 +1001,7 @@ body {
 .photo-frame.mini {
   min-height: 10%;
 }
+
 
 /* ── Form Controls ───────────────────────────────────────── */
 .form-group {
@@ -734,7 +1171,7 @@ textarea.form-control {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 5px;
-  padding-left: 20px;
+  padding-left: 20px !important;
   width: 100%;
   margin-bottom: 0.35rem;
 }
@@ -746,7 +1183,9 @@ textarea.form-control {
 
 .visit-bar-info {
   flex: 1;
+  color: #000;
   display: flex;
+  flex-direction: column;
   min-width: 0;
   gap: 5px;
 }
@@ -755,12 +1194,12 @@ textarea.form-control {
   display: flex;
   align-items: center;
   gap: 0.1rem;
-  font-size: 1rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-primary);
 }
 
 .visit-bar-meta {
@@ -768,11 +1207,9 @@ textarea.form-control {
   flex-direction: row;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  margin-top: 0.15rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
   font-size: 0.7rem;
-
 }
 
 
@@ -828,7 +1265,8 @@ textarea.form-control {
   z-index: 9999;
   width: 100%;
   height: 100%;
-  background: #0d0b18; /* Solid, premium dark background matching manifest.json theme */
+  background: #0d0b18;
+  /* Solid, premium dark background matching manifest.json theme */
   color: white;
   transition: opacity 0.4s ease, visibility 0.4s ease;
 }
@@ -885,14 +1323,24 @@ textarea.form-control {
 
 /* ── Linked Visit Row (in Expense Form) ──────────────────── */
 .expense-form-details {
-  background: var(--bg-card);
-  border: 1px solid var(--border-glow);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.85rem;
-  margin-top: 0.7rem;
+  background: var(--secondary);
+  border: none;
+  border-radius: var(--radius-card);
+  padding: 0.85rem;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.45rem;
+  flex-grow: 1;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.expense-form-details .form-control {
+  background: rgb(255, 255, 255);
+  color: black;
+  border: none !important;
+  border-radius: 20px;
 }
 
 .linked-visit-row {
@@ -939,10 +1387,10 @@ textarea.form-control {
   align-items: center;
   gap: 0.6rem;
   padding: 0.65rem 0.85rem;
-  background: hsla(258, 60%, 50%, 0.07);
+  background: var(--bg-card-hover);
   border: 1px solid var(--border-glow);
   position: relative;
-  border-radius: 15px;
+  border-radius: 25px;
   color: var(--text-secondary);
   font-size: 0.55rem;
   text-align: center;
@@ -955,10 +1403,6 @@ textarea.form-control {
   justify-content: space-around;
 }
 
-.receipt-capture-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
 
 .receipt-capture-btn svg {
   flex-shrink: 0;
@@ -1533,8 +1977,9 @@ textarea.form-control {
   flex-shrink: 0;
 }
 
-.pwa-view-switcher {
+.header-switch {
   display: flex;
+  position: relative;
   gap: 0.4rem;
   padding: 5px;
   background: var(--bg-card);
@@ -1548,18 +1993,21 @@ textarea.form-control {
   align-items: center;
 }
 
-.pwa-view-btn:hover {
+
+.switch-btn:hover {
   color: var(--primary);
-  background: var(--bg-card-hover);
+
 }
 
-.pwa-view-btn {
+
+.switch-btn {
   display: flex;
+  position: relative;
   align-items: center;
   justify-content: center;
   height: 40px;
   border: none;
-  background: transparent;
+  background: var(--bg-card-hover);
   color: var(--text-muted);
   padding: 5px;
   flex-grow: 1;
@@ -1569,13 +2017,27 @@ textarea.form-control {
   transition: all var(--transition);
 }
 
+.switch-btn-rnd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 40px;
+  background: var(--bg-card-hover);
+  color: var(--text-muted);
+  padding: 5px;
+  border-radius: 120px;
+  cursor: pointer;
+}
 
-.pwa-view-btn.active {
+
+.switch-btn.active,
+.switch-btn-rnd.active {
   background: var(--primary);
   color: #fff;
 }
 
-.pwa-view-switcher .pwa-view-btn .text {
+#history-switcher .switch-btn .text {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1583,7 +2045,7 @@ textarea.form-control {
   font-weight: bold;
 }
 
-.pwa-view-switcher .pwa-view-btn.active .text {
+#history-switcher .switch-btn.active .text {
   color: white;
 
 }

@@ -142,6 +142,12 @@ class MavisExpenseApp {
     this._pendingReceiptBase64 = '';
     this._currentReceiptUrl = '';
     this.aiAutomation = true;
+    this.inEditMode = false;
+
+    // Carousel state
+    this._cardIndex = 0;
+    this._cardExpenses = [];
+    this._cardVisitGroups = [];
 
     // History view state
     this._historyView = 'list'; // 'list' | 'cal'
@@ -362,9 +368,9 @@ class MavisExpenseApp {
       if (!this.activeVisit) {
         this.updateNavbarLayout('VISIT_SETUP');
       } else {
-        const expenseForm = document.getElementById('expense-form-details');
-        const isFormVisible = expenseForm && expenseForm.style.display !== 'none';
-        this.updateNavbarLayout(isFormVisible ? 'AID_EDIT' : 'AUTO');
+        const cardInner0 = document.getElementById('card-inner-0');
+        const isFlipped = cardInner0 && cardInner0.classList.contains('flipped');
+        this.updateNavbarLayout(isFlipped ? 'AID_EDIT' : 'AUTO');
       }
     }
   }
@@ -796,7 +802,7 @@ class MavisExpenseApp {
 
       // Measure both faces before the animation starts
       const frontH = frontFace.offsetHeight;
-      const backH  = backFace.offsetHeight;
+      const backH = backFace.offsetHeight;
 
       // Lock height and kick off the flip
       flipper.style.transition = 'transform 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95), height 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95)';
@@ -1240,7 +1246,7 @@ class MavisExpenseApp {
       // Unique Alert Styling: Gives a clean, warning/empty state aesthetic
       bar.style.borderBottom = '1px solid var(--border-glow)';
       bar.style.background = '';
-      bar.style.boxShadow = 'none';
+      bar.style.display = 'none';
 
       // Transform the main action button into a gateway to the modal
       if (btnEnd) {
@@ -1274,9 +1280,9 @@ class MavisExpenseApp {
     }
     // ── STATE 3: STANDARD ACTIVE VISIT MODE ──
     else {
-      bar.style.borderBottom = '2px solid var(--secondary)';
-      bar.style.background = 'var(--bg-card)';
-      bar.style.boxShadow = 'var(--shadow-md)';
+
+      bar.style.background = 'transparent';
+      bar.style.border = 'none';
       if (statusText) statusText.textContent = 'Open';
 
 
@@ -1286,6 +1292,9 @@ class MavisExpenseApp {
         btnEnd.onclick = () => this.endVisit();
       }
     }
+
+    // Keep the carousel in sync whenever active visit changes
+    this._rebuildCardTrack();
   }
 
 
@@ -1648,41 +1657,414 @@ class MavisExpenseApp {
     this.aiAutomation = isAuto;
     this.log(`AI Mode switched to: ${isAuto ? 'AUTO' : 'AID'}`);
 
-    // Toggle the visibility of elements based on the selected mode
-    const expenseForm = document.getElementById('expense-form-details');
-    const frame = document.getElementById('frame');
-
-    if (expenseForm) { expenseForm.style.display = isAuto ? 'none' : 'flex'; }
-    if (frame) { frame.classList.toggle('mini', !isAuto); }
-
-    if (isAuto) {
-      this.updateNavbarLayout('AUTO');
-    } else {
-      this.updateNavbarLayout('AID_EDIT');
-    }
-
-
+    // AID mode → flip card-0 to form face; AUTO mode → flip back to front
+    this.expenseMode(!isAuto);
   }
 
   expenseMode(forceOpen = false) {
-
-    const expenseForm = document.getElementById('expense-form-details');
-    const frame = document.getElementById('frame');
-    const isVisible = expenseForm.style.display !== 'none';
-
-    if (forceOpen && isVisible) return;
-    this.inEditMode = !isVisible;
-
-    expenseForm.style.display = this.inEditMode ? 'flex' : 'none';
+    const cardInner = document.getElementById('card-inner-0');
+    if (!cardInner) return;
+    const isFlipped = cardInner.classList.contains('flipped');
+    if (forceOpen && isFlipped) return;
+    this.inEditMode = forceOpen || !isFlipped;
     if (this.inEditMode) {
+      cardInner.classList.add('flipped');
       this.updateNavbarLayout('AID_EDIT');
     } else {
+      cardInner.classList.remove('flipped');
       this.updateNavbarLayout('AUTO');
     }
+  }
 
-    this.inEditMode ? frame.classList.add('mini') : frame.classList.remove('mini');
+  // ── Card Flip Helper ──
+  flipCard(idx, toBack) {
+    const cardInner = document.getElementById(`card-inner-${idx}`);
+    if (cardInner) cardInner.classList.toggle('flipped', toBack);
+  }
 
+  // ── Visit colour palette ──
+  _visitColor(idx) {
+    const palette = [
+      'hsl(258, 70%, 62%)',
+      'hsl(161, 75%, 42%)',
+      'hsl(38,  95%, 55%)',
+      'hsl(205, 80%, 55%)',
+      'hsl(340, 72%, 58%)',
+      'hsl(280, 60%, 58%)',
+      'hsl(15,  88%, 56%)',
+    ];
+    return palette[idx % palette.length];
+  }
 
+  // ── Visit-specific gradient backdrop ──
+  _visitGradient(idx) {
+    const hues = [258, 161, 38, 205, 340, 280, 15];
+    const h = hues[idx % hues.length];
+    return `linear-gradient(135deg, hsl(${h}, 50%, 20%) 0%, hsl(${(h + 30) % 360}, 40%, 8%) 100%)`;
+  }
+
+  // ── Destination-wide visit groups ──
+  _getDestinationVisitGroups() {
+    const dest = (this.activeVisit?.destination || '').trim().toLowerCase();
+    if (!dest) return [];
+    const activeId = this.activeVisit?.id;
+    const seenIds = new Set();
+    const candidates = [];
+
+    if (Array.isArray(this._allVisits)) {
+      this._allVisits.forEach(v => {
+        const vId = v.visit_id || v.id;
+        if (!vId) return;
+        if ((v.destination || '').trim().toLowerCase() === dest) {
+          seenIds.add(vId);
+          candidates.push({ id: vId, destination: v.destination, date: v.date, status: v.status || 'Open' });
+        }
+      });
+    }
+
+    if (this._visitMap) {
+      Object.entries(this._visitMap).forEach(([vId, v]) => {
+        if (seenIds.has(vId)) return;
+        if ((v.destination || '').trim().toLowerCase() === dest) {
+          seenIds.add(vId);
+          candidates.push({ id: vId, destination: v.destination, date: v.date, status: v.status || 'Open' });
+        }
+      });
+    }
+
+    if (activeId && !seenIds.has(activeId)) {
+      candidates.push({ id: activeId, destination: this.activeVisit.destination, date: this.activeVisit.date, status: this.activeVisit.status || 'Open' });
+    }
+
+    candidates.sort((a, b) => {
+      if (a.id === activeId) return -1;
+      if (b.id === activeId) return 1;
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
+
+    return candidates.map((v, colorIdx) => ({
+      ...v,
+      colorIdx,
+      color: this._visitColor(colorIdx),
+      expenses: (this._allRows || []).filter(e => e.visit_id === v.id),
+    }));
+  }
+
+  // ── Carousel track builder ──
+  _rebuildCardTrack() {
+    const track = document.getElementById('card-track');
+    if (!track) return;
+
+    while (track.children.length > 1) track.lastElementChild.remove();
+
+    const visitGroups = this._getDestinationVisitGroups();
+    this._cardVisitGroups = visitGroups;
+    this._cardExpenses = visitGroups.flatMap(g => g.expenses);
+
+    let globalCardIdx = 0;
+    visitGroups.forEach(group => {
+      group.expenses.forEach(exp => {
+        globalCardIdx++;
+        const cardIdx = globalCardIdx;
+        const card = document.createElement('div');
+        card.className = 'expense-card';
+        card.setAttribute('data-card-index', cardIdx);
+        card.setAttribute('data-expense-id', exp.id);
+
+        // Image fades in on successful load; hidden on error so gradient fallback shows
+        const imgUrl = exp.receipt_url || exp.image_base64 || '';
+        const imageHtml = imgUrl
+          ? `<img src="${imgUrl}" class="expense-card-img" onload="this.classList.add('loaded')" onerror="this.classList.add('error')" alt="Receipt">`
+          : '';
+
+        const isActive = group.id === this.activeVisit?.id;
+        const visitBadge = `<span class="exp-visit-badge" style="background:${group.color}">${isActive ? 'Current Visit' : formatDateFriendly(group.date)}</span>`;
+        const gradient = this._visitGradient(group.colorIdx);
+        const vendorInitial = (exp.vendor || 'N').charAt(0).toUpperCase();
+        const notesHtml = exp.notes
+          ? `<div class="fallback-notes-bubble" style="border-left-color:${group.color}">“${exp.notes}”</div>` : '';
+
+        card.innerHTML = `
+          <div class="card-inner" id="card-inner-${cardIdx}">
+            <div class="card-face card-front" style="border:2.5px solid ${group.color};background:${gradient};">
+              ${imageHtml}
+              <div class="fallback-card-content">
+                <div class="fallback-card-header">
+                  <div class="fallback-vendor-circle" style="background:${group.color}25;border:1.5px solid ${group.color};color:${group.color};">${vendorInitial}</div>
+                  <div class="fallback-category-pill" style="border-color:${group.color}80;color:${group.color};">${exp.category || 'Other'}</div>
+                </div>
+                <div class="fallback-card-body">
+                  <div class="fallback-amount-large">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+                  <div class="fallback-vendor-large">${exp.vendor || 'No Vendor'}</div>
+                  ${notesHtml}
+                </div>
+                <div class="fallback-card-footer">
+                  <div class="fallback-date-badge">
+                    <svg data-lucide="calendar" width="12" height="12"></svg>
+                    <span>${formatDateFriendly(exp.date)}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="expense-card-overlay">
+                ${visitBadge}
+                <div class="expense-card-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+                <div class="expense-card-vendor">${exp.vendor || 'No Vendor'}</div>
+                <div class="expense-card-category">${exp.category || 'Other'}</div>
+              </div>
+              <button type="button" class="expense-card-flip-btn" onclick="app.flipCard(${cardIdx}, true)" title="View Details">
+                <svg data-lucide="info" width="18" height="18"></svg>
+              </button>
+            </div>
+            <div class="card-face card-back" style="border:2.5px solid ${group.color};">
+              <div class="expense-card-detail-back">
+                <div class="expense-detail-close" onclick="app.flipCard(${cardIdx}, false)">
+                  <svg data-lucide="x" width="18" height="18"></svg>
+                </div>
+                <div class="detail-visit-tag" style="background:${group.color}22;border:1px solid ${group.color};color:${group.color};">
+                  ${group.destination} · ${formatDateFriendly(group.date)} · ${group.status}
+                </div>
+                <div class="detail-row" style="margin-bottom:.5rem">
+                  <div class="detail-label">Amount</div>
+                  <div class="detail-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Vendor</div>
+                  <div class="detail-value">${exp.vendor || 'Manual Entry'}</div>
+                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Category</div>
+                  <div class="detail-value">${exp.category || 'Other'}</div>
+                </div>
+                <div class="detail-row">
+                  <div class="detail-label">Date</div>
+                  <div class="detail-value">${formatDateFriendly(exp.date)}</div>
+                </div>
+                <div class="detail-row" style="flex-grow:1">
+                  <div class="detail-label">Notes</div>
+                  <div class="detail-value" style="font-style:italic;white-space:pre-wrap">${exp.notes || 'No notes.'}</div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        track.appendChild(card);
+      });
+    });
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons({ attrs: { stroke: 'currentColor', 'stroke-width': '2' }, nameAttr: 'data-lucide', root: track });
+    }
+
+    this._buildDotsOnce();
+    this._initSwipe();
+    this._scrollToCard(this._cardIndex || 0, true);
+  }
+
+  // ── Build dots once — CSS transitions remain alive between updates ──
+  _buildDotsOnce() {
+    const dotsContainer = document.getElementById('card-dots');
+    if (!dotsContainer) return;
+    dotsContainer.innerHTML = '';
+
+    const dot0 = document.createElement('div');
+    dot0.className = 'card-dot';
+    dot0.dataset.dotIndex = '0';
+    dot0.style.setProperty('--dot-color', 'var(--text-muted)');
+    dot0.onclick = () => this._scrollToCard(0);
+    dotsContainer.appendChild(dot0);
+
+    const groups = this._cardVisitGroups || [];
+    let globalDotIdx = 0;
+
+    groups.forEach(group => {
+      if (!group.expenses.length) return;
+      const sep = document.createElement('div');
+      sep.className = 'card-dot-sep';
+      dotsContainer.appendChild(sep);
+
+      group.expenses.forEach(() => {
+        globalDotIdx++;
+        const cardPos = globalDotIdx;
+        const dot = document.createElement('div');
+        dot.className = 'card-dot';
+        dot.dataset.dotIndex = String(cardPos);
+        dot.style.setProperty('--dot-color', group.color);
+        dot.onclick = () => this._scrollToCard(cardPos);
+        dotsContainer.appendChild(dot);
+      });
+    });
+
+    this._updateActiveDot();
+  }
+
+  // ── Toggle active dot only — no DOM teardown keeps CSS transitions alive ──
+  _updateActiveDot() {
+    const dotsContainer = document.getElementById('card-dots');
+    if (!dotsContainer) return;
+    dotsContainer.querySelectorAll('.card-dot').forEach(dot => {
+      const idx = parseInt(dot.dataset.dotIndex, 10);
+      dot.classList.toggle('active', idx === this._cardIndex);
+    });
+  }
+
+  // ── Live card scale & opacity from fractional scroll progress ──
+  _updateCardTransforms(currentX) {
+    const track = document.getElementById('card-track');
+    if (!track) return;
+    const cardWidth = track.parentElement
+      ? track.parentElement.getBoundingClientRect().width
+      : window.innerWidth;
+    if (!cardWidth) return;
+    const progress = -currentX / cardWidth;
+    track.querySelectorAll('.expense-card').forEach((card, idx) => {
+      const diff = Math.abs(idx - progress);
+      const scale  = Math.max(0.88, 1 - Math.min(1, diff) * 0.12);
+      const opacity = Math.max(0.4,  1 - Math.min(1, diff) * 0.6);
+      card.style.transform = `scale(${scale.toFixed(4)})`;
+      card.style.opacity   = opacity.toFixed(4);
+    });
+  }
+
+  // ── Snap Scroll ──
+  _scrollToCard(idx, immediate = false) {
+    const track = document.getElementById('card-track');
+    if (!track) return;
+
+    const maxIdx = this._cardExpenses.length;
+    idx = Math.max(0, Math.min(idx, maxIdx));
+    this._cardIndex = idx;
+
+    const cardWidth = track.parentElement
+      ? track.parentElement.getBoundingClientRect().width
+      : window.innerWidth;
+
+    const targetX = -idx * cardWidth;
+
+    if (immediate) {
+      track.style.transition = 'none';
+      track.style.transform = `translateX(${targetX}px)`;
+      this._updateCardTransforms(targetX);
+      track.offsetHeight; // force reflow
+      track.style.transition = '';
+    } else {
+      track.style.transform = `translateX(${targetX}px)`;
+      this._updateCardTransforms(targetX);
+    }
+
+    this._updateActiveDot();
+  }
+
+  // ── Swipe / Drag ──
+  _initSwipe() {
+    const track = document.getElementById('card-track');
+    if (!track) return;
+
+    // Remove old listeners by cloning (cheapest approach)
+    const fresh = track.cloneNode(true);
+    track.parentNode.replaceChild(fresh, track);
+    const t = document.getElementById('card-track');
+
+    let isDragging = false;
+    let hasMoved = false;
+    let startX = 0;
+    let startTime = 0;
+    let currentTranslate = 0;
+    let capturedPointerId = null;
+
+    const getCardWidth = () =>
+      t.parentElement ? t.parentElement.getBoundingClientRect().width : window.innerWidth;
+
+    const getTranslateX = () => {
+      const style = window.getComputedStyle(t);
+      const matrix = new WebKitCSSMatrix(style.transform);
+      return matrix.m41;
+    };
+
+    const endDrag = (clientX) => {
+      if (!isDragging) return;
+      isDragging = false;
+      t.classList.remove('dragging');
+
+      const deltaX = clientX - startX;
+      const elapsed = Date.now() - startTime;
+      const cardWidth = getCardWidth();
+      const velocity = Math.abs(deltaX) / elapsed;
+      const isSwipe = velocity > 0.3 || Math.abs(deltaX) > cardWidth * 0.3;
+
+      let targetIndex = this._cardIndex;
+      if (isSwipe) {
+        if (deltaX < 0) {
+          targetIndex = Math.min(this._cardExpenses.length, this._cardIndex + 1);
+        } else {
+          targetIndex = Math.max(0, this._cardIndex - 1);
+        }
+      }
+      this._scrollToCard(targetIndex);
+    };
+
+    t.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      // Only block actual text-input controls (not buttons or forms — they are fine for swipe)
+      const tag = e.target.tagName.toLowerCase();
+      if (['input', 'select', 'textarea'].includes(tag)) return;
+
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      startTime = Date.now();
+      currentTranslate = getTranslateX();
+    });
+
+    t.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - startX;
+
+      if (!hasMoved && Math.abs(deltaX) > 6) {
+        hasMoved = true;
+        t.classList.add('dragging');
+        // Capture pointer now that we're sure it's a drag
+        try { t.setPointerCapture(e.pointerId); capturedPointerId = e.pointerId; } catch (_) { }
+      }
+
+      if (!hasMoved) return;
+      e.preventDefault();
+      const cardWidth = getCardWidth();
+      const maxTranslate = 0;
+      const minTranslate = -(this._cardExpenses.length) * cardWidth;
+      let newTranslate = currentTranslate + deltaX;
+      newTranslate = Math.max(minTranslate - cardWidth * 0.15, Math.min(maxTranslate + cardWidth * 0.15, newTranslate));
+      t.style.transition = 'none';
+      t.style.transform = `translateX(${newTranslate}px)`;
+
+      // Live-update card scale/opacity and active dot during drag
+      this._updateCardTransforms(newTranslate);
+      const dragProgress = -newTranslate / cardWidth;
+      const liveIdx = Math.max(0, Math.min(this._cardExpenses.length, Math.round(dragProgress)));
+      if (this._cardIndex !== liveIdx) {
+        this._cardIndex = liveIdx;
+        this._updateActiveDot();
+      }
+    }, { passive: false });
+
+    t.addEventListener('pointerup', (e) => {
+      if (hasMoved && capturedPointerId !== null) {
+        try { t.releasePointerCapture(capturedPointerId); } catch (_) { }
+        capturedPointerId = null;
+      }
+      endDrag(e.clientX);
+    });
+
+    t.addEventListener('pointercancel', (e) => {
+      if (capturedPointerId !== null) {
+        try { t.releasePointerCapture(capturedPointerId); } catch (_) { }
+        capturedPointerId = null;
+      }
+      endDrag(e.clientX);
+    });
+
+    // Block click-through if user was dragging
+    t.addEventListener('click', (e) => {
+      if (hasMoved) e.stopPropagation();
+    }, true);
   }
 
   // ── Modal Controller ──
@@ -2295,10 +2677,20 @@ class MavisExpenseApp {
 
   cancelEdit() {
     this.editingExpenseId = null;
-    document.getElementById('expense-form-details').reset();
-    document.getElementById('expense-form-title').textContent = 'New Expense';
+    const form = document.getElementById('expense-form-details');
+    if (form) form.reset();
+    const title = document.getElementById('expense-form-title');
+    if (title) title.textContent = 'New Expense';
     this.removeReceipt();
     this._updateLinkedVisitDisplay();
+
+    // Reset card-0 to front face and scroll back to it
+    const cardInner0 = document.getElementById('card-inner-0');
+    if (cardInner0) cardInner0.classList.remove('flipped');
+    this._cardIndex = 0;
+    this._scrollToCard(0, true);
+    this.inEditMode = false;
+    this.updateNavbarLayout('AUTO');
   }
 
 
@@ -2550,6 +2942,9 @@ class MavisExpenseApp {
     // ── 4. Populate filters then render ──────────────────────
     this._populateHistoryFilters();
     this._setHistoryView(this._historyView);
+
+    // Rebuild the carousel cards when database records refresh
+    this._rebuildCardTrack();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -3540,15 +3935,7 @@ class MavisExpenseApp {
     }
   }
 
-  /**
-   * Safely cancels out of active edit configurations back to standby auto tracking modes.
-   */
-  cancelEdit() {
-    this.log('Reverting workspace back to standard automation context.');
-    if (typeof this.expenseMode === 'function') {
-      this.expenseMode(false);
-    }
-  }
+
 
   // ──────────────────────────────────────────────────────────
   //  EXTENDED ACTIONS & MODALS
