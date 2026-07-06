@@ -1,0 +1,5 @@
+# Netlify Configuration File
+# Tells Netlify to look inside the /pwa directory for index.html
+
+[build]
+  publish = "pwa"
