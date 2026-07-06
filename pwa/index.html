@@ -186,9 +186,8 @@
       <!-- NEW VISIT CARD (Start or Select) -->
       <section id="new-visit" class="visit-new">
 
-        <section class="glass-card">
-          <h2 class="card-title" style="justify-content: center;">
-
+        <section class="glass-card" style="background-color: var(--primary-dark);">
+          <h2 class="card-title" style="justify-content: center; color: white;">
             New Visit
           </h2>
 
@@ -356,9 +355,7 @@
         style="flex-grow:1;">
         <div class="glass-card">
           <h2 class="card-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" data-lucide="link" stroke-linejoin="round" style="stroke:var(--primary)">
-            </svg>
+
             Google Data Link
 
           </h2>
@@ -371,7 +368,7 @@
             <input type="password" id="set-secret-key" class="form-control" placeholder="Your shared secret token">
           </div>
           <div class="btn-row">
-            <button class="btn btn-primary" style="flex:1;" onclick="app.saveSettings()">Save Settings</button>
+            <button class="btn btn-secondary style=" flex:1;" onclick="app.saveSettings()">Save Settings</button>
             <button class="btn btn-outline" onclick="app.testConnection()" style="flex:1;">Test Connection</button>
           </div>
           <div id="sync-error-msg-settings" class="sync-error" style="display:none; margin-top:0.75rem;"></div>
@@ -381,22 +378,24 @@
 
 
 
-        <div class="console-box" id="dev-console" style="flex-grow:1;">
+        <div class="glass-card" style="flex-grow:1;">
 
           <h2 class="card-title">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" data-lucide="terminal" stroke-linejoin="round" style="stroke:var(--primary)">
             </svg>
             Console Log
-
             <button class="btn btn-outline" onclick="app.clearDevConsole()"
               style="margin-left:auto; font-size:0.7rem; padding:0.25rem 0.5rem;">Clear</button>
 
           </h2>
 
-          &gt; Console ready.
+
+          <div class="console-box" id="dev-console">
+            &gt; Console ready.
 
 
+          </div>
         </div>
 
 
@@ -409,48 +408,50 @@
         <!-- Zone 1: Pinned Office Card (JS-rendered) -->
         <div id="loc-office-slot"></div>
 
-        <!-- Zone 2: Pinned collapsible Add Location card -->
-        <div class="location-card add" id="loc-add-card">
-          <div class="loc-add-header" onclick="app.toggleAddLocation()">
-            <svg data-lucide="map-pin-plus" width="15" height="15" style="color:currentColor; flex-shrink:0;"></svg>
-            <span>Add New Location</span>
-            <svg data-lucide="chevron-down" class="loc-chevron" width="14" height="14"
-              style="margin-left:auto; flex-shrink:0;"></svg>
+        <!-- Scrollable container holding both the list of locations and the Add card -->
+        <div class="locations-scroll" id="locations-scroll-container">
+          <div id="locations-list" style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div class="empty-state">No locations yet.</div>
           </div>
-          <div class="loc-add-body" id="loc-add-body">
-            <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-              <input type="text" id="loc-name" class="form-control" placeholder="Location name…" style="flex:1;">
-              <button class="btn btn-outline" title="Use GPS" onclick="app.getDeviceGPS()"
-                style="flex-shrink:0; padding:0 0.6rem;">
-                <svg data-lucide="locate" width="15" height="15"></svg>
+
+          <!-- Zone 2: Pinned collapsible Add Location card (now at the bottom of the list) -->
+          <div class="location-card add" id="loc-add-card">
+            <div class="loc-add-header" onclick="app.toggleAddLocation()">
+              <svg data-lucide="map-pin-plus" width="15" height="15" style="color:currentColor; flex-shrink:0;"></svg>
+              <span>Add New Location</span>
+              <svg data-lucide="chevron-down" class="loc-chevron" width="14" height="14"
+                style="margin-left:auto; flex-shrink:0;"></svg>
+            </div>
+            <div class="loc-add-body" id="loc-add-body">
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="text" id="loc-name" class="form-control" placeholder="Location name…" style="flex:1;">
+              </div>
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="number" id="loc-lat" class="form-control" placeholder="Latitude" step="0.00001"
+                  style="flex:1;">
+                <input type="number" id="loc-lng" class="form-control" placeholder="Longitude" step="0.00001"
+                  style="flex:1;">
+
+                <button class="btn btn-outline" title="Use GPS" onclick="app.getDeviceGPS()"
+                  style="flex-shrink:0; padding:0 0.6rem;">
+                  <svg data-lucide="locate" width="15" height="15"></svg>
+                </button>
+              </div>
+
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="number" id="loc-radius" class="form-control" style="display:none;" placeholder="Radius (m)"
+                  step="10" min="50" value="100" style="flex:1;">
+                <select id="loc-category" class="form-control" style="flex:1;">
+                  <option value="visit">Visit</option>
+                  <option value="office">Office</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;" onclick="app.addLocationFromForm()">
+                Save Location
               </button>
             </div>
-            <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-              <input type="number" id="loc-lat" class="form-control" placeholder="Latitude" step="0.00001"
-                style="flex:1;">
-              <input type="number" id="loc-lng" class="form-control" placeholder="Longitude" step="0.00001"
-                style="flex:1;">
-            </div>
-            <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-              <input type="number" id="loc-radius" class="form-control" placeholder="Radius (m)" step="10" min="50"
-                value="100" style="flex:1;">
-              <select id="loc-category" class="form-control" style="flex:1;">
-                <option value="visit">Visit</option>
-                <option value="office">Office</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <button class="btn btn-secondary" style="width:100%; background-color: var(--secondary); color: black;"
-              onclick="app.addLocationFromForm()">
-
-              Save Location
-            </button>
           </div>
-        </div>
-
-        <!-- Zone 3: Scrollable non-office locations -->
-        <div class="locations-scroll" id="locations-list">
-          <div class="empty-state">No locations yet.</div>
         </div>
 
       </section>
@@ -463,7 +464,15 @@
 
     </main>
 
-    <section id="welcome" class="welcome"> </section>
+    <section id="welcome" class="welcome">
+      <div class="welcome-content">
+        <h1 class="welcome-title">Mittens</h1>
+        <p class="welcome-subtitle">Expense Copilot</p>
+        <div class="loading-spinner-container">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+    </section>
 
     <!-- ═══════════════════════════════════════════════════════
          BOTTOM NAVIGATION  (3 items)

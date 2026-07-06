@@ -267,7 +267,11 @@ class MavisExpenseApp {
       this.log('Missing API credentials. Rerouting to Settings view.');
       this.switchTab('settings'); // Force UI focus onto settings tab
       this.toggleNewVisitModal(false); // Hide the modal screen so it doesn't mask the view
-      if (welcome) welcome.style.display = 'none';
+      if (welcome) {
+        welcome.style.opacity = '0';
+        welcome.style.visibility = 'hidden';
+        setTimeout(() => { welcome.style.display = 'none'; }, 400);
+      }
       this._showToast('⚠️ Please configure your WebApp URL and Secret Key.');
       return; // STOP execution loop completely to block unreachable fetch requests!
     }
@@ -284,7 +288,11 @@ class MavisExpenseApp {
       this._showToast('Offline fallback active. Data will sync when connected.');
     } finally {
       if (rightNav) rightNav.classList.remove('rotate');
-      if (welcome) welcome.style.display = 'none';
+      if (welcome) {
+        welcome.style.opacity = '0';
+        welcome.style.visibility = 'hidden';
+        setTimeout(() => { welcome.style.display = 'none'; }, 400);
+      }
     }
 
     // Determine the visibility profile of the modal sheet safely
@@ -633,23 +641,27 @@ class MavisExpenseApp {
     editView.className = 'loc-card-edit';
     const cat = loc.category || loc.default_category || 'visit';
     editView.innerHTML = `
-      <div class="btn-row" style="gap:0.4rem;">
+      <div class="btn-row" >
         <input type="text" class="form-control loc-edit-name" value="${this._escHTML(loc.name)}" placeholder="Name">
-        <button class="btn btn-outline" title="Use GPS" onclick="app.getDeviceGPS(this)"
-          style="flex-shrink:0; padding:0 0.6rem; height:36px">
-          <svg data-lucide="locate" width="15" height="15"></svg>
-        </button>
       </div>
-      <div class="btn-row" style="gap:0.4rem;">
+
+      <div class="btn-row" >
+        <select class="form-control loc-edit-category">
+          <option value="visit"  ${cat === 'visit' ? 'selected' : ''}>Visit</option>
+          <option value="office" ${cat === 'office' ? 'selected' : ''}>Office</option>
+          <option value="Other"  ${cat === 'Other' ? 'selected' : ''}>Other</option>
+        </select>
+      </div>
+
+      <div class="btn-row" >
         <input type="number" class="form-control loc-edit-lat" value="${loc.lat ?? ''}" placeholder="Latitude" step="0.00001" style="flex:1;">
         <input type="number" class="form-control loc-edit-lng" value="${loc.lng ?? ''}" placeholder="Longitude" step="0.00001" style="flex:1;">
-      </div>
-      <input type="number" class="form-control loc-edit-radius" value="${loc.radius ?? 100}" placeholder="Radius (m)">
-      <select class="form-control loc-edit-category">
-        <option value="visit"  ${cat === 'visit' ? 'selected' : ''}>Visit Location</option>
-        <option value="office" ${cat === 'office' ? 'selected' : ''}>Office Location</option>
-        <option value="Other"  ${cat === 'Other' ? 'selected' : ''}>Other Location</option>
-      </select>
+        <button class="form-control" title="Use GPS" onclick="app.getDeviceGPS(this)" style="width: 100px; flex-grow:0;">
+          <svg data-lucide="locate" width="15" height="15"></svg>
+        </button>
+        </div>
+      <input type="number" style="display: none;" class="form-control loc-edit-radius" value="${loc.radius ?? 100}" placeholder="Radius (m)">
+
       <div class="loc-edit-actions">
          <button class="btn btn-outline loc-delete-btn">
           <svg data-lucide="trash-2" width="15" height="15"></svg>
@@ -675,18 +687,60 @@ class MavisExpenseApp {
     const backFace = document.createElement('div');
     backFace.className = 'loc-card-back';
     let backBuilt = false;
+    let isBackCollapsed = false;
+
+    // Helper: applies the current collapse state to back-face elements
+    const applyBackCollapse = (histList, summaryLine, collapseBtn) => {
+      if (isBackCollapsed) {
+        histList.style.display = 'none';
+        summaryLine.style.display = 'flex';
+        collapseBtn.innerHTML = `<svg data-lucide="chevron-down" width="12" height="12"></svg>`;
+        collapseBtn.title = 'Expand history';
+      } else {
+        histList.style.display = '';
+        summaryLine.style.display = 'none';
+        collapseBtn.innerHTML = `<svg data-lucide="chevron-up" width="12" height="12"></svg>`;
+        collapseBtn.title = 'Collapse history';
+      }
+      this._refreshIcons(backFace);
+    };
 
     const buildBack = (showArchived = false) => {
       backFace.innerHTML = '';
       const history = this._buildLocationVisitHistory(loc, showArchived);
 
-      // Back-face header: title + archive toggle + flip-back button
+      // Compute summary stats for the collapsed view
+      const allGroups = this._groupByVisit(this._allRows || [], this._allVisits || []);
+      const locGroups = allGroups.filter(g => !g.isVirtual &&
+        (g.destination || '').trim().toLowerCase() === (loc.name || '').trim().toLowerCase());
+      const visitCount = locGroups.length;
+      const totalMiles = locGroups.reduce((sum, g) => sum + (parseFloat(g.distance_miles) || 0), 0);
+
+      // ── Back-face header ─────────────────────────────────────
       const backHeader = document.createElement('div');
       backHeader.className = 'loc-visit-back-header';
 
       const backTitle = document.createElement('span');
       backTitle.className = 'loc-visit-back-title';
       backTitle.textContent = loc.name;
+
+      // Summary line (visible only when collapsed)
+      const summaryLine = document.createElement('div');
+      summaryLine.className = 'loc-back-summary-line';
+      summaryLine.innerHTML = `
+        <svg data-lucide="map-pin" width="11" height="11"></svg>
+        ${visitCount} visit${visitCount !== 1 ? 's' : ''}· ${totalMiles.toFixed(1)} mi
+      `;
+
+      // Collapse / expand toggle
+      const collapseBtn = document.createElement('button');
+      collapseBtn.className = 'loc-back-collapse-btn';
+      collapseBtn.type = 'button';
+      collapseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isBackCollapsed = !isBackCollapsed;
+        applyBackCollapse(history, summaryLine, collapseBtn);
+      });
 
       const archiveToggle = document.createElement('button');
       archiveToggle.className = `loc-archive-toggle-btn${showArchived ? ' active' : ''}`;
@@ -695,7 +749,6 @@ class MavisExpenseApp {
       archiveToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         buildBack(!showArchived);
-        this._refreshIcons(backFace);
       });
 
       const flipBackBtn = document.createElement('button');
@@ -705,23 +758,65 @@ class MavisExpenseApp {
       flipBackBtn.innerHTML = `<svg data-lucide="flip-horizontal-2" width="13" height="13"></svg>`;
       flipBackBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Animate height from back face back to front face, then unflip
+        const backH = backFace.offsetHeight;
+        const frontH = frontFace.offsetHeight;
+        flipper.style.height = backH + 'px';
+        card.classList.remove('flip-complete');
+        flipper.offsetHeight; // force reflow
+        flipper.style.transition = 'transform 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95), height 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95)';
+        flipper.style.height = frontH + 'px';
         card.classList.remove('flipped');
+        const onEnd = (ev) => {
+          if (ev.propertyName !== 'transform') return;
+          flipper.style.height = '';
+          flipper.style.transition = '';
+          flipper.removeEventListener('transitionend', onEnd);
+        };
+        flipper.addEventListener('transitionend', onEnd);
       });
 
       backHeader.appendChild(backTitle);
+      backHeader.appendChild(summaryLine);
+      backHeader.appendChild(collapseBtn);
       backHeader.appendChild(archiveToggle);
       backHeader.appendChild(flipBackBtn);
       backFace.appendChild(backHeader);
       backFace.appendChild(history);
       backBuilt = true;
+
+      // Restore the current collapse state on newly built content
+      applyBackCollapse(history, summaryLine, collapseBtn);
     };
 
     // ── Flip-to-back button ───────────────────────────────────
     editView.querySelector('#loc-flip-to-back').addEventListener('click', (e) => {
       e.stopPropagation();
       if (!backBuilt) buildBack(false);
+
+      // Measure both faces before the animation starts
+      const frontH = frontFace.offsetHeight;
+      const backH  = backFace.offsetHeight;
+
+      // Lock height and kick off the flip
+      flipper.style.transition = 'transform 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95), height 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95)';
+      flipper.style.height = frontH + 'px';
       card.classList.add('flipped');
       this._refreshIcons(backFace);
+
+      // Animate height toward back face simultaneously
+      flipper.offsetHeight; // force reflow
+      flipper.style.height = backH + 'px';
+
+      // Once settled: hand layout control to the back face
+      const onEnd = (ev) => {
+        if (ev.propertyName !== 'transform') return;
+        card.classList.add('flip-complete');
+        flipper.style.height = '';
+        flipper.style.transition = '';
+        flipper.removeEventListener('transitionend', onEnd);
+      };
+      flipper.addEventListener('transitionend', onEnd);
     });
 
     // ── Assemble flipper ──────────────────────────────────────
