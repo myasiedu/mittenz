@@ -1419,10 +1419,7 @@ class MavisExpenseApp {
 
 
 
-  // ──────────────────────────────────────────────────────────
-  //  END VISIT
-  // ──────────────────────────────────────────────────────────
-  endVisit() {
+  endVisit(visitId = null) {
     if (!confirm('End this visit? It will be marked Closed.')) return;
     if (this.activeVisit) {
       this.activeVisit.status = 'Closed';
