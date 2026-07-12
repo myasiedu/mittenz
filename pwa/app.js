@@ -175,6 +175,20 @@ class MavisExpenseApp {
     this.loadSettings();
   }
 
+
+  _getDirectDriveUrl(url) {
+    if (!url) return null;
+    if (url.includes('/uc?') || url.startsWith('data:')) return url;
+
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      // OLD: export=view&id=... (Very restrictive)
+      // NEW: thumbnail?id=...&sz=w1000 (Much more reliable)
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+    }
+    return url;
+  }
+
   // ──────────────────────────────────────────────────────────
   //  INIT
   // ──────────────────────────────────────────────────────────
@@ -239,9 +253,11 @@ class MavisExpenseApp {
 
     // ── History view switcher ──
     const btnList = document.getElementById('pwa-view-btn-list');
+    const btnLoc = document.getElementById('pwa-view-btn-loc');
     const btnCal = document.getElementById('pwa-view-btn-cal');
     const btnArchive = document.getElementById('btn-archive-view');
     if (btnList) btnList.addEventListener('click', () => this._setHistoryView('list'));
+    if (btnLoc) btnLoc.addEventListener('click', () => this._setHistoryView('loc'));
     if (btnCal) btnCal.addEventListener('click', () => this._setHistoryView('cal'));
     if (btnArchive) btnArchive.addEventListener('click', () => this._toggleArchiveView());
 
@@ -252,7 +268,7 @@ class MavisExpenseApp {
     if (nextYr) nextYr.addEventListener('click', () => { this._calDate.setFullYear(this._calDate.getFullYear() + 1); this.renderCalendarView(); });
 
     // ── History list filters ──
-    ['pwa-filter-year', 'pwa-filter-month', 'pwa-filter-status'].forEach(id => {
+    ['pwa-filter-year', 'pwa-filter-month', 'pwa-filter-status', 'pwa-filter-location'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', () => { if (this._historyView === 'list') this.renderListView(); });
     });
@@ -309,6 +325,33 @@ class MavisExpenseApp {
     }
 
     this.log('Ready.');
+
+
+
+    // ── Filter Accordion UI Logic ──
+    document.querySelectorAll('.filter-select-case').forEach(caseEl => {
+      caseEl.addEventListener('click', (e) => {
+
+        // 1. Reset ALL other cases (Shrink them and close their selects)
+        document.querySelectorAll('.filter-select-case').forEach(otherCase => {
+          if (otherCase !== caseEl) {
+            otherCase.classList.remove('grow');
+            otherCase.querySelectorAll('.pwa-filter-select').forEach(sel => {
+              sel.classList.remove('open');
+            });
+          }
+        });
+
+        // 2. Activate the CLICKED case (Grow it and open its selects)
+        caseEl.classList.add('grow');
+        caseEl.querySelectorAll('.pwa-filter-select').forEach(sel => {
+          sel.classList.add('open');
+        });
+
+      });
+    });
+
+
   }
 
   registerSW() {
@@ -359,8 +402,6 @@ class MavisExpenseApp {
       const activePanel = document.querySelector('.settings-panel.active');
       if (activePanel) this._refreshIcons(activePanel);
       // Refresh locations list if on that tab
-      const locPanel = document.getElementById('set-panel-locations');
-      if (locPanel?.classList.contains('active')) this.renderLocationsList();
     } else if (tabId === 'record') {
       if (typeof this._refreshLinkedVisitDropdown === 'function') this._refreshLinkedVisitDropdown();
 
@@ -1105,6 +1146,44 @@ class MavisExpenseApp {
     }
   }
 
+  toggleClaimStatus(logId, isSynced) {
+
+    const log = this._allRows.find(r => r.id === logId);
+    if (!log) return;
+
+    const idx = this._allRows.indexOf(log);
+    if (idx === -1) return;
+
+    const newStatus = !isSynced ? 'synced' : 'pending';
+
+    // Update local data
+    const oldStatus = log.status || log.sync_status || '';
+    log.status = newStatus;
+    log.sync_status = newStatus;
+    this._allRows[idx] = log;
+
+    // Persist to Dexie (only if we have a DB instance)
+    if (this.db) {
+      // Find the log in the store
+      this.db.logs.get(logId).then(l => {
+        if (l) {
+          l.status = newStatus;
+          l.sync_status = newStatus;
+          this.db.logs.put(l).catch(err => console.error('Failed to update log status in Dexie:', err));
+        }
+      }).catch(err => console.error('Failed to find log in Dexie:', err));
+
+      // If this log has an image, we need to ensure it's synced
+      if (log.receipt_image) {
+        this._ensureImageSynced(logId, log.receipt_image);
+      }
+    }
+
+    // Re-render to update UI immediately
+    this.renderDashboard();
+    this._showToast(`✅ ${newStatus === 'synced' ? 'Claimed' : 'Pending'}`);
+  }
+
   // ── Get Device GPS with Fallback ──────────────────────────
   getDeviceGPS(btnEl) {
     let latEl = document.getElementById('loc-lat');
@@ -1198,7 +1277,7 @@ class MavisExpenseApp {
     }
 
     // Refresh the locations panel if it's currently visible
-    if (document.getElementById('set-panel-locations')?.classList.contains('active')) {
+    if (document.getElementById('pwa-view-loc')?.classList.contains('active')) {
       this.renderLocationsList();
     }
   }
@@ -1207,13 +1286,14 @@ class MavisExpenseApp {
     const sel = document.getElementById('visit-destination');
     if (!sel) return;
     const prev = sel.value; // preserve selection across refreshes
-    sel.innerHTML = '<option value="">Start New Visit</option>';
+    //sel.innerHTML = '<option value="">Start New Visit</option>';
     locs.forEach(loc => {
       const mi = loc.distance_from_home || 0;
       const opt = document.createElement('option');
       opt.value = loc.name;
       opt.dataset.distance = mi;
-      opt.textContent = mi > 0 ? `${loc.name}  (${mi} mi)` : loc.name;
+      opt.textContent = loc.name;
+      //opt.textContent = mi > 0 ? `${loc.name}  (${mi} mi)` : loc.name;
       sel.appendChild(opt);
     });
     if (prev) sel.value = prev;
@@ -1223,52 +1303,53 @@ class MavisExpenseApp {
   //  VISIT BAR RENDER
   // ──────────────────────────────────────────────────────────
   _renderVisitBar() {
-    const bar = document.getElementById('visit-bar-active');
-    if (!bar) return;
+    const vBar = document.getElementById('visit-bar');
+    if (!vBar) return;
 
-    // The bar is now permanently visible across all application states
-    bar.style.display = 'flex';
+    vBar.className = 'visit-section bar';
+    vBar.innerHTML = '';
 
-    // Target internal DOM nodes safely
-    const destSpan = document.getElementById('vbar-destination');
-    const dateSpan = document.getElementById('vbar-date');
     const idSpan = document.getElementById('vbar-id');
     const statusText = document.getElementById('vbar-status');
-    const btnEnd = document.getElementById('btn-end-visit');
-    if (idSpan) idSpan.style.display = 'none';
+    if (idSpan) { idSpan.style.display = 'none'; idSpan.textContent = this.activeVisit.id; }
 
     // ── STATE 1: ORPHAN MODE (No active or past visit selected) ──
     if (!this.activeVisit) {
-      if (destSpan) destSpan.textContent = 'Orphan';
-      if (dateSpan) dateSpan.textContent = 'Expenses are not linked to any visit';
-      if (statusText) statusText.textContent = 'Unlinked';
 
-      // Unique Alert Styling: Gives a clean, warning/empty state aesthetic
-      bar.style.borderBottom = '1px solid var(--border-glow)';
-      bar.style.background = '';
-      bar.style.display = 'none';
+      vBar.innerHTML = `
+      <div class="switch-btn" style=" padding:0 10px; background-color: var(--secondary); color: white;">
+        <select class="new-visit-selector" id="visit-destination" onchange="app.startVisit()"
+          placeholder="Start New Visit">
+          <option value="" disabled selected hidden>Start New Visit</option>
+        </select>
 
-      // Transform the main action button into a gateway to the modal
-      if (btnEnd) {
-        btnEnd.textContent = 'Start Visit';
-        btnEnd.className = 'btn btn-primary';
-        btnEnd.onclick = () => this.toggleNewVisitModal(true);
-      }
+        <div class="new-visit-date"
+          onclick="const d = document.getElementById('visit-date'); d.focus(); try { d.showPicker(); } catch(e) {}">
+          <svg width="17" height="17" stroke="#000" stroke-width="2" data-lucide="calendar"></svg>
+        </div>
+
+        <input type="date" id="visit-date"
+          style="position: absolute; right: 10px; opacity: 0; pointer-events: none; width: 24px; height: 24px; border: none; background: transparent; padding: 0;">
+      </div>`;
+
+      // 1. Re-populate the newly created select menu with your locations
+      const locs = (this.locations && this.locations.length) ? this.locations : (this.settings.frequentPlaces || []);
+      this._populateDestSel(locs);
+
+      // 2. Re-initialize Lucide icons so the new calendar SVG actually renders
+      if (typeof lucide !== 'undefined') this._refreshIcons(vBar);
+
       return; // Exit early to avoid evaluating object configurations
+
+
     }
 
-    // Populate foundational strings shared by both active and historical records
-    if (destSpan) destSpan.textContent = this.activeVisit.destination || 'Unknown';
-    if (dateSpan) dateSpan.textContent = formatDateFriendly(this.activeVisit.date);
-    if (idSpan) {
-      idSpan.textContent = this.activeVisit.id;
-    }
 
     // ── STATE 2: PAST VISIT MODE (Morphed Context) ──
     if (this.activeVisit.isPast) {
-      bar.style.borderBottom = '2px solid gray';
-      bar.style.background = '';
-      bar.style.boxShadow = 'var(--shadow-sm)';
+      vBar.style.borderBottom = '2px solid gray';
+      vBar.style.background = '';
+      vBar.style.boxShadow = 'var(--shadow-sm)';
       if (statusText) statusText.textContent = 'Past Visit';
 
 
@@ -1280,21 +1361,38 @@ class MavisExpenseApp {
     }
     // ── STATE 3: STANDARD ACTIVE VISIT MODE ──
     else {
+      vBar.addEventListener('click', () => { this.switchTab('record'); });
 
-      bar.style.background = 'transparent';
-      bar.style.border = 'none';
-      if (statusText) statusText.textContent = 'Open';
+      vBar.classList.add('bar');
+      vBar.innerHTML = `
+     
+      <span class="active-visit"></span>
+
+      <div class="group-title">
+        <div class="visit-bar-dest">${this.activeVisit.destination}</div>
+        <div class="visit-bar-meta">${formatDateFriendly(this.activeVisit.date)}</div>
+      </div>
+
+       <div style="display: flex; height:100%; align-items: center;gap:10px">
 
 
-      if (btnEnd) {
-        btnEnd.textContent = 'End Visit';
-        btnEnd.className = 'btn btn-primary';
-        btnEnd.onclick = () => this.endVisit();
-      }
+
+      <span onclick="event.stopPropagation(); app.endVisit('${this.activeVisit.id}')">
+       <svg width="20" height="20" stroke="#000" stroke-width="2" data-lucide="x"></svg>
+      </span>
+
+      </div>
+      `
+
+
+
+
+
+
+      // Keep the carousel in sync whenever active visit changes
+      this._rebuildCardTrack();
     }
 
-    // Keep the carousel in sync whenever active visit changes
-    this._rebuildCardTrack();
   }
 
 
@@ -1312,9 +1410,6 @@ class MavisExpenseApp {
     this.activeVisit = null;
     localStorage.removeItem('mavis_active_visit');
 
-    // 2. Hide Visit Bar
-    const bar = document.getElementById('visit-bar-active');
-    if (bar) bar.style.display = 'flex';
 
     // 3. Clear Expense Form Dropdown
     const sel = document.getElementById('log-select-visit');
@@ -1421,20 +1516,50 @@ class MavisExpenseApp {
 
   endVisit(visitId = null) {
     if (!confirm('End this visit? It will be marked Closed.')) return;
-    if (this.activeVisit) {
-      this.activeVisit.status = 'Closed';
-      this._queueVisit(this.activeVisit);
-    }
-    this.activeVisit = null;
-    localStorage.removeItem('mavis_active_visit');
 
-    this._renderVisitBar();
-    this._pastVisitsLoaded = false;
+    let visitToClose = null;
+
+    // Scenario A: End the globally Active Visit (triggered from the Top Nav Bar)
+    if (!visitId || (this.activeVisit && this.activeVisit.id === visitId)) {
+      if (this.activeVisit) {
+        this.activeVisit.status = 'Closed';
+        this._queueVisit(this.activeVisit);
+      }
+      this.activeVisit = null;
+      localStorage.removeItem('mavis_active_visit');
+      this._renderVisitBar();
+      this._pastVisitsLoaded = false;
+      this.toggleNewVisitModal(true); // Open modal for next action
+    }
+    // Scenario B: End a specific historical visit from the History List
+    else {
+      // Look up the visit details so we can queue it correctly to the backend
+      const mapData = this._visitMap?.[visitId] || {};
+
+      visitToClose = {
+        id: visitId,
+        date: mapData.date || new Date().toISOString().split('T')[0],
+        destination: mapData.destination || 'Unknown',
+        distanceMiles: mapData.distance_miles || mapData.distanceMiles || 0,
+        status: 'Closed'
+      };
+
+      // Immediately update local map so the UI reflects it instantly
+      if (this._visitMap && this._visitMap[visitId]) {
+        this._visitMap[visitId].status = 'Closed';
+      }
+    }
+
+    // Queue for sync and save to sheets
+    if (visitToClose) {
+      this._queueVisit(visitToClose);
+    }
+
     this.log('Visit ended and marked Closed.');
     this._showToast('Visit closed.');
 
-    // Force call creation interface overlay back open to establish continuous flow
-    this.toggleNewVisitModal(true);
+
+    this.renderHistory();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -1676,8 +1801,58 @@ class MavisExpenseApp {
   // ── Card Flip Helper ──
   flipCard(idx, toBack) {
     const cardInner = document.getElementById(`card-inner-${idx}`);
-    if (cardInner) cardInner.classList.toggle('flipped', toBack);
+    if (!cardInner) return;
+
+    const backFace = cardInner.querySelector('.card-back');
+    const overlay = document.getElementById(`receipt-state-${idx}`);
+    const statusMsg = overlay?.querySelector('.status-msg');
+
+    if (toBack) {
+      const expenseData = this._cardExpenses[idx];
+
+      // DEBUG: Show raw data on the UI
+      if (overlay && statusMsg) {
+        overlay.style.display = 'flex';
+        const debugUrl = expenseData?.receipt_url || 'No URL Found';
+        const noURL = debugUrl.includes('No URL Found');
+        statusMsg.innerHTML = `
+        ${noURL ? 'No Image found!' : `
+        <div style="font-size: 10px; word-break: break-all; margin-bottom: 5px;">
+          URL: ${debugUrl}
+        </div>
+         
+         <div id="status-text-${idx}">Loading receipt...</div>`}
+        `;
+        //console.log(`Debug [Card ${idx}] Raw URL:`, expenseData?.receipt_url);
+      }
+
+      if (expenseData?.receipt_url) {
+        const directUrl = this._getDirectDriveUrl(expenseData.receipt_url);
+        console.log(`Debug [Card ${idx}] Converted URL:`, directUrl);
+
+        const img = new Image();
+        const statusText = document.getElementById(`status-text-${idx}`);
+
+        img.onload = () => {
+          backFace.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url("${directUrl}")`;
+          if (overlay) overlay.style.display = 'none';
+        };
+
+        img.onerror = () => {
+          if (statusText) statusText.textContent = 'Error: Failed to load (CORS/Permission)';
+          console.error(`Debug [Card ${idx}] Failed to load:`, directUrl);
+          setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 3000);
+        };
+
+        img.src = directUrl;
+      }
+    }
+
+    cardInner.classList.toggle('flipped', toBack);
   }
+
+
+
 
   // ── Visit colour palette ──
   _visitColor(idx) {
@@ -1758,17 +1933,31 @@ class MavisExpenseApp {
     this._cardVisitGroups = visitGroups;
     this._cardExpenses = visitGroups.flatMap(g => g.expenses);
 
-    let globalCardIdx = 0;
-    visitGroups.forEach(group => {
+    let globalCardIdx = 1;
+
+    visitGroups.forEach((group, groupIdx) => {
+      // 1. PRE-BUILD THE DOTS FOR THIS SPECIFIC GROUP
+      const groupStartIdx = globalCardIdx;
+      let groupDotsHtml = '';
+
+      group.expenses.forEach((_, idx) => {
+        const dotExpenseIdx = groupStartIdx + idx;
+        // Note: We use app._scrollToCard assuming 'app' is your global instance variable
+        groupDotsHtml += `<div class="card-dot secondary visible" data-expense-index="${dotExpenseIdx}" style="--dot-color:${group.color}" onclick="app._scrollToCard(${dotExpenseIdx})"></div>`;
+      });
+
+
+
+      // 2. BUILD THE CARDS
       group.expenses.forEach(exp => {
-        globalCardIdx++;
         const cardIdx = globalCardIdx;
+        globalCardIdx++; // Increment after assigning current index
+
         const card = document.createElement('div');
         card.className = 'expense-card';
         card.setAttribute('data-card-index', cardIdx);
         card.setAttribute('data-expense-id', exp.id);
 
-        // Image fades in on successful load; hidden on error so gradient fallback shows
         const imgUrl = exp.receipt_url || exp.image_base64 || '';
         const imageHtml = imgUrl
           ? `<img src="${imgUrl}" class="expense-card-img" onload="this.classList.add('loaded')" onerror="this.classList.add('error')" alt="Receipt">`
@@ -1779,70 +1968,72 @@ class MavisExpenseApp {
         const gradient = this._visitGradient(group.colorIdx);
         const vendorInitial = (exp.vendor || 'N').charAt(0).toUpperCase();
         const notesHtml = exp.notes
-          ? `<div class="fallback-notes-bubble" style="border-left-color:${group.color}">“${exp.notes}”</div>` : '';
+          ? `<div class="fallback-notes-bubble" style="border-left-color:${group.color}">
+          <div class="fallback-category-pill" style="border-color:${group.color}80;color:${group.color};">${exp.category || 'Other'}</div>
+          “${exp.notes}”</div>` : '';
 
         card.innerHTML = `
-          <div class="card-inner" id="card-inner-${cardIdx}">
-            <div class="card-face card-front" style="border:2.5px solid ${group.color};background:${gradient};">
-              ${imageHtml}
-              <div class="fallback-card-content">
-                <div class="fallback-card-header">
-                  <div class="fallback-vendor-circle" style="background:${group.color}25;border:1.5px solid ${group.color};color:${group.color};">${vendorInitial}</div>
-                  <div class="fallback-category-pill" style="border-color:${group.color}80;color:${group.color};">${exp.category || 'Other'}</div>
-                </div>
-                <div class="fallback-card-body">
-                  <div class="fallback-amount-large">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
-                  <div class="fallback-vendor-large">${exp.vendor || 'No Vendor'}</div>
-                  ${notesHtml}
-                </div>
-                <div class="fallback-card-footer">
-                  <div class="fallback-date-badge">
-                    <svg data-lucide="calendar" width="12" height="12"></svg>
-                    <span>${formatDateFriendly(exp.date)}</span>
-                  </div>
+        <div class="card-inner" id="card-inner-${cardIdx}">
+          <div class="card-face card-front" style="border:2.5px solid ${group.color};background:${gradient};">
+            ${imageHtml}
+            <div class="fallback-card-content">
+              <div class="fallback-card-header">
+                <div class="fallback-vendor-circle" style="background:${group.color};border:1.5px solid ${group.color};color:white;">${vendorInitial}</div>    
+                <div class="fallback-vendor-large">${exp.vendor || 'No Vendor'}</div> 
+              </div>
+              <div class="fallback-card-header">
+                <div class="card-title" style="flex-grow: 0;font-size: 1rem; padding:0;">Receipt</div>  
+                <div class="fallback-date-badge" style="color:${group.color}; margin-left:auto">
+                  <svg data-lucide="calendar" width="12" height="12"></svg>
+                  <span>${formatDateFriendly(exp.date)}</span>
                 </div>
               </div>
-              <div class="expense-card-overlay">
-                ${visitBadge}
-                <div class="expense-card-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
-                <div class="expense-card-vendor">${exp.vendor || 'No Vendor'}</div>
-                <div class="expense-card-category">${exp.category || 'Other'}</div>
+                  
+              <div class="fallback-card-body">
+                ${notesHtml}
+                <div class="fallback-amount-large">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
               </div>
-              <button type="button" class="expense-card-flip-btn" onclick="app.flipCard(${cardIdx}, true)" title="View Details">
-                <svg data-lucide="info" width="18" height="18"></svg>
-              </button>
-            </div>
-            <div class="card-face card-back" style="border:2.5px solid ${group.color};">
-              <div class="expense-card-detail-back">
-                <div class="expense-detail-close" onclick="app.flipCard(${cardIdx}, false)">
-                  <svg data-lucide="x" width="18" height="18"></svg>
+              
+              <div class="fallback-card-footer">
+                <div class="card-dots-container" style="display: flex; gap: 6px; justify-content: flex-start; width: 100%;">
+                  ${groupDotsHtml}
                 </div>
-                <div class="detail-visit-tag" style="background:${group.color}22;border:1px solid ${group.color};color:${group.color};">
-                  ${group.destination} · ${formatDateFriendly(group.date)} · ${group.status}
-                </div>
-                <div class="detail-row" style="margin-bottom:.5rem">
-                  <div class="detail-label">Amount</div>
-                  <div class="detail-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
-                </div>
-                <div class="detail-row">
-                  <div class="detail-label">Vendor</div>
-                  <div class="detail-value">${exp.vendor || 'Manual Entry'}</div>
-                </div>
-                <div class="detail-row">
-                  <div class="detail-label">Category</div>
-                  <div class="detail-value">${exp.category || 'Other'}</div>
-                </div>
-                <div class="detail-row">
-                  <div class="detail-label">Date</div>
-                  <div class="detail-value">${formatDateFriendly(exp.date)}</div>
-                </div>
-                <div class="detail-row" style="flex-grow:1">
-                  <div class="detail-label">Notes</div>
-                  <div class="detail-value" style="font-style:italic;white-space:pre-wrap">${exp.notes || 'No notes.'}</div>
-                </div>
+              </div>
+
+              <div class="expense-btn-row">
+    
+              <div class="eCardBtn" onclick=""><svg data-lucide="pencil"  ></svg></div>
+              <div class="eCardBtn" onclick="${imgUrl ? `app.flipCard(${cardIdx}, true)` : ``}">
+                ${imgUrl ? ` <svg data-lucide="image"></svg>`
+            : `<svg data-lucide="camera"></svg>`}
+              </div>
+
               </div>
             </div>
-          </div>`;
+          </div>
+
+          <div class="card-face card-back" id="card-back-${cardIdx}" style="border:1px solid ${group.color};">
+            <div class="receipt-state-overlay" id="receipt-state-${cardIdx}" style="position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10;">
+              <span class="status-msg" style="color: white;"></span>
+            </div>
+
+            <div class="expense-card-detail-back" style="display:none"></div>
+
+              
+           
+            
+
+            <div class="expense-card-overlay">
+              <div class="expense-card-vendor">${exp.vendor || 'No Vendor'}</div>
+              <div class="expense-card-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+              ${visitBadge}
+            </div>
+            <div class="expense-btn-row">
+              <div class="eCardBtn" onclick=""><svg data-lucide="pencil"  ></svg></div>
+              <div class="eCardBtn" onclick="app.flipCard(${cardIdx}, false)"><svg data-lucide="info"  ></svg></div>
+            </div>
+          </div>
+        </div>`;
         track.appendChild(card);
       });
     });
@@ -1851,56 +2042,136 @@ class MavisExpenseApp {
       lucide.createIcons({ attrs: { stroke: 'currentColor', 'stroke-width': '2' }, nameAttr: 'data-lucide', root: track });
     }
 
-    this._buildDotsOnce();
+    this._initDots();
     this._initSwipe();
     this._scrollToCard(this._cardIndex || 0, true);
   }
 
   // ── Build dots once — CSS transitions remain alive between updates ──
-  _buildDotsOnce() {
+  // Call this once during your App setup
+  _initDots() {
     const dotsContainer = document.getElementById('card-dots');
-    if (!dotsContainer) return;
-    dotsContainer.innerHTML = '';
+    const gDotsContainer = document.getElementById('group-dots');
 
-    const dot0 = document.createElement('div');
-    dot0.className = 'card-dot';
-    dot0.dataset.dotIndex = '0';
-    dot0.style.setProperty('--dot-color', 'var(--text-muted)');
-    dot0.onclick = () => this._scrollToCard(0);
-    dotsContainer.appendChild(dot0);
+    // Wait if elements don't exist yet
+    if (!dotsContainer || !gDotsContainer) {
+      setTimeout(() => this._initDots(), 100);
+      return;
+    }
+
+    this._buildDotsOnce();
+  }
+
+  _initDots() {
+    const gDotsContainer = document.getElementById('group-dots');
+    if (!gDotsContainer) {
+      setTimeout(() => this._initDots(), 100);
+      return;
+    }
+    this._buildDotsOnce();
+  }
+
+  _buildDotsOnce() {
+    const gDotsContainer = document.getElementById('group-dots');
+    gDotsContainer.innerHTML = '';
 
     const groups = this._cardVisitGroups || [];
-    let globalDotIdx = 0;
+    let globalCardIdx = 1;
 
-    groups.forEach(group => {
+    groups.forEach((group, groupIdx) => {
       if (!group.expenses.length) return;
-      const sep = document.createElement('div');
-      sep.className = 'card-dot-sep';
-      dotsContainer.appendChild(sep);
 
-      group.expenses.forEach(() => {
-        globalDotIdx++;
-        const cardPos = globalDotIdx;
-        const dot = document.createElement('div');
-        dot.className = 'card-dot';
-        dot.dataset.dotIndex = String(cardPos);
-        dot.style.setProperty('--dot-color', group.color);
-        dot.onclick = () => this._scrollToCard(cardPos);
-        dotsContainer.appendChild(dot);
+      // Build Primary Group Dot
+      const gDot = document.createElement('div');
+      gDot.className = `group-dot ${groupIdx === 0 ? 'first-group' : ''}`;
+      gDot.dataset.groupIndex = String(groupIdx);
+      gDot.style.backgroundColor = 'var(--text-primary)';
+      gDot.onclick = () => this._scrollToCard(this._getFirstIndexForGroup(groupIdx));
+
+      const groupStartIdx = globalCardIdx;
+
+      // Build Secondary Dots
+      group.expenses.forEach((_, idx) => {
+        const dotExpenseIdx = groupStartIdx + idx;
+        const secDot = document.createElement('div');
+
+        // Removed the 'visible' class. We will let CSS handle visibility.
+        secDot.className = 'card-dot secondary';
+        secDot.dataset.expenseIndex = String(dotExpenseIdx);
+        secDot.dataset.groupIndex = String(groupIdx);
+        secDot.style.setProperty('--dot-color', group.color);
+
+        // CRITICAL FIX: Stop event bubbling
+        secDot.onclick = (e) => {
+          e.stopPropagation(); // Stops the parent gDot from being clicked too
+          this._scrollToCard(dotExpenseIdx);
+        };
+
+        gDot.appendChild(secDot);
+        globalCardIdx++;
       });
+
+      gDotsContainer.appendChild(gDot);
     });
 
     this._updateActiveDot();
   }
 
-  // ── Toggle active dot only — no DOM teardown keeps CSS transitions alive ──
   _updateActiveDot() {
-    const dotsContainer = document.getElementById('card-dots');
-    if (!dotsContainer) return;
-    dotsContainer.querySelectorAll('.card-dot').forEach(dot => {
-      const idx = parseInt(dot.dataset.dotIndex, 10);
-      dot.classList.toggle('active', idx === this._cardIndex);
+    const gDotsContainer = document.getElementById('group-dots');
+    if (!gDotsContainer) return;
+
+    // 1. Determine which group we are currently looking at
+    const currentGroupIdx = this._getGroupIndexFromExpenseIndex(this._cardIndex);
+
+    // 2. Update Primary Group Dots
+    gDotsContainer.querySelectorAll('.group-dot').forEach(gDot => {
+      const isTargetGroup = parseInt(gDot.dataset.groupIndex) === currentGroupIdx;
+      gDot.classList.toggle('active', isTargetGroup);
     });
+
+    // 3. Update Secondary Dots (which are now nested inside)
+    gDotsContainer.querySelectorAll('.card-dot.secondary').forEach(secDot => {
+      const dotExpenseIdx = parseInt(secDot.dataset.expenseIndex);
+      // Highlight if this is the currently active expense card
+      secDot.classList.toggle('active', dotExpenseIdx === this._cardIndex);
+    });
+
+    // 4. Update Secondary Dots (which now live inside the cards)
+    document.querySelectorAll('.card-dots-container .card-dot.secondary').forEach(dot => {
+      const dotExpenseIdx = parseInt(dot.dataset.expenseIndex);
+      dot.classList.toggle('active', dotExpenseIdx === this._cardIndex);
+    });
+  }
+
+
+  // Ensure these helpers are in your class
+  _getFirstIndexForGroup(targetGroupIdx) {
+    let count = 1;
+    for (let i = 0; i < targetGroupIdx; i++) {
+      count += (this._cardVisitGroups[i].expenses?.length || 0);
+    }
+    return count;
+  }
+
+  _getGroupIndexFromExpenseIndex(expenseIdx) {
+    // If we are looking at the "Add New" card (index 0), 
+    // it doesn't belong to any visit group. Return -1 so no group dot highlights.
+    if (expenseIdx === 0) return -1;
+
+    // Start at 1 to account for the 'Add New' card offset
+    let runningCount = 1;
+
+    for (let i = 0; i < this._cardVisitGroups.length; i++) {
+      const groupLength = this._cardVisitGroups[i].expenses?.length || 0;
+
+      if (expenseIdx < runningCount + groupLength) {
+        return i;
+      }
+      runningCount += groupLength;
+    }
+
+    return this._cardVisitGroups.length - 1; // Fallback to last group
   }
 
   // ── Live card scale & opacity from fractional scroll progress ──
@@ -1914,10 +2185,10 @@ class MavisExpenseApp {
     const progress = -currentX / cardWidth;
     track.querySelectorAll('.expense-card').forEach((card, idx) => {
       const diff = Math.abs(idx - progress);
-      const scale  = Math.max(0.88, 1 - Math.min(1, diff) * 0.12);
-      const opacity = Math.max(0.4,  1 - Math.min(1, diff) * 0.6);
+      const scale = Math.max(0.88, 1 - Math.min(1, diff) * 0.12);
+      const opacity = Math.max(0.4, 1 - Math.min(1, diff) * 0.6);
       card.style.transform = `scale(${scale.toFixed(4)})`;
-      card.style.opacity   = opacity.toFixed(4);
+      card.style.opacity = opacity.toFixed(4);
     });
   }
 
@@ -1951,14 +2222,96 @@ class MavisExpenseApp {
   }
 
   // ── Swipe / Drag ──
-  _initSwipe() {
-    const track = document.getElementById('card-track');
-    if (!track) return;
-
-    // Remove old listeners by cloning (cheapest approach)
-    const fresh = track.cloneNode(true);
-    track.parentNode.replaceChild(fresh, track);
+  _initSwipeNew() {
     const t = document.getElementById('card-track');
+    if (!t) return;
+
+    if (this._swipeBound) return;
+    this._swipeBound = true;
+
+    let isDragging = false;
+    let hasMoved = false;
+    let startX = 0;
+    let currentTranslate = 0;
+
+    const getCardWidth = () => t.parentElement ? t.parentElement.getBoundingClientRect().width : window.innerWidth;
+
+    const endDrag = (clientX) => {
+      if (!isDragging) return;
+      isDragging = false;
+      t.classList.remove('dragging');
+
+      // RESET: Restore transition so the snap is smooth
+      t.style.transition = 'transform 0.4s cubic-bezier(0.23, 1, 0.32, 1)';
+
+      // LOGIC: Snap to the nearest card based on current drag position
+      const cardWidth = getCardWidth();
+      const currentPos = this._getTranslateX(); // Helper to get current matrix value
+      const nearestIndex = Math.round(Math.abs(currentPos) / cardWidth);
+
+      // Safety bounds
+      const targetIndex = Math.max(0, Math.min(this._cardExpenses.length - 1, nearestIndex));
+
+      this._scrollToCard(targetIndex);
+    };
+
+    t.addEventListener('pointerdown', (e) => {
+      // Ignore if clicking a button (flip/close) or input
+      const tag = e.target.tagName.toLowerCase();
+      const isActionBtn = e.target.closest('.eCardBtn') || e.target.closest('.expense-detail-close');
+
+      if (['input', 'select', 'textarea'].includes(tag) || isActionBtn) return;
+
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      currentTranslate = this._getTranslateX();
+      t.style.transition = 'none'; // Disable transition during drag
+    });
+
+    t.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - startX;
+      if (Math.abs(deltaX) > 6) hasMoved = true;
+      if (!hasMoved) return;
+
+      e.preventDefault();
+      t.classList.add('dragging');
+
+      // Calculate translate
+      let newTranslate = currentTranslate + deltaX;
+
+      // Elastic Resistance (The "Phone Feel"): 
+      // If we go past the first or last card, slow down the drag speed
+      const cardWidth = getCardWidth();
+      const minTranslate = -(this._cardExpenses.length - 1) * cardWidth;
+
+      if (newTranslate > 0) newTranslate *= 0.3; // Resistance at start
+      if (newTranslate < minTranslate) newTranslate = minTranslate + (newTranslate - minTranslate) * 0.3; // Resistance at end
+
+      t.style.transform = `translateX(${newTranslate}px)`;
+    }, { passive: false });
+
+    // ... pointerup and pointercancel remain similar, just ensure they call endDrag(e.clientX)
+  }
+
+
+  _getTranslateX() {
+    const t = document.getElementById('card-track');
+    const style = window.getComputedStyle(t);
+    const matrix = new WebKitCSSMatrix(style.transform);
+    return matrix.m41; // This gets the X value directly
+  }
+
+  _initSwipe() {
+    const t = document.getElementById('card-track');
+    if (!t) return;
+
+    // FIX: Only bind the swipe events once! 
+    // Cloning the node destroys the file input and amount input listeners.
+    if (this._swipeBound) return;
+    this._swipeBound = true;
 
     let isDragging = false;
     let hasMoved = false;
@@ -2066,20 +2419,12 @@ class MavisExpenseApp {
 
   // ── Modal Controller ──
   toggleNewVisitModal(show) {
-    // This targets your form container (formerly a modal, now the inline screen panel)
-    const visitSection = document.getElementById('new-visit');
 
     if (show) {
       // 1. Make sure the user is on the record tab where the form lives
-      if (this.currentTab !== 'record') {
-        this.switchTab('record');
+      if (this.currentTab !== 'sync') {
+        this.switchTab('sync');
       }
-
-      // 2. Display the inline form section
-      if (visitSection) {
-        visitSection.style.display = 'flex';
-      }
-
       // 3. Keep your reliable trigger to populate the past visits dropdown menu
       if (typeof this.loadPastVisits === 'function') {
         this.loadPastVisits();
@@ -2089,11 +2434,6 @@ class MavisExpenseApp {
       this.updateNavbarLayout('VISIT_SETUP');
 
     } else {
-      // 1. Hide the inline visit form section since a visit is active or bypassed
-      if (visitSection) {
-        visitSection.style.display = 'none';
-      }
-
       // 2. Revert the bottom navigation bar back to standard camera tracking mode
       this.updateNavbarLayout('AUTO');
     }
@@ -2655,7 +2995,7 @@ class MavisExpenseApp {
     this.editingExpenseId = log.id;
     this.updateNavbarLayout('AID_EDIT');
 
-    document.getElementById('expense-form-title').textContent = 'Edit Expense';
+    document.getElementById('expense-form-title').textContent = 'Edit Receipt';
 
     document.getElementById('exp-category').value = log.category || 'Other';
     document.getElementById('exp-amount').value = log.amount || '';
@@ -2672,12 +3012,67 @@ class MavisExpenseApp {
     window.scrollTo(0, 0);
   }
 
+  async deleteVisit(visitId) {
+    if (!visitId) return;
+    if (!confirm('Are you sure you want to delete this empty visit? This cannot be undone.')) return;
+
+    this.log(`Deleting visit: ${visitId}`);
+
+    // 1. Remove from local memory arrays
+    if (this._visitMap && this._visitMap[visitId]) {
+      delete this._visitMap[visitId];
+    }
+    if (Array.isArray(this.visits)) {
+      this.visits = this.visits.filter(v => (v.visit_id || v.id) !== visitId);
+    }
+    if (Array.isArray(this._allVisits)) {
+      this._allVisits = this._allVisits.filter(v => (v.visit_id || v.id) !== visitId);
+    }
+
+    // 2. Remove from pending offline queue (if it hasn't synced to server yet)
+    try {
+      let pendingVisits = JSON.parse(localStorage.getItem('mavis_pending_visits') || '[]');
+      pendingVisits = pendingVisits.filter(v => (v.visit_id || v.id) !== visitId);
+      localStorage.setItem('mavis_pending_visits', JSON.stringify(pendingVisits));
+    } catch (_) { }
+
+    // 3. Backend Sync Placeholder
+    const { webappUrl: url, secretKey: token } = this.settings;
+    if (url) {
+      try {
+        /*
+        // UNCOMMENT THIS WHEN 'delete_visit' IS BUILT IN CODE.GS
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'delete_visit',
+            token,
+            visit_id: visitId
+          })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          this.log('Server delete failed: ' + data.message);
+        }
+        */
+        this.log('[Placeholder] Backend delete logic bypassed.');
+      } catch (err) {
+        this.log('Network error during delete: ' + err.message);
+      }
+    }
+
+    // 4. Update the UI
+    this._showToast('🗑 Visit deleted.');
+    this.renderHistory();
+  }
+
   cancelEdit() {
     this.editingExpenseId = null;
     const form = document.getElementById('expense-form-details');
     if (form) form.reset();
     const title = document.getElementById('expense-form-title');
-    if (title) title.textContent = 'New Expense';
+    if (title) title.textContent = 'New Receipt';
     this.removeReceipt();
     this._updateLinkedVisitDisplay();
 
@@ -2744,32 +3139,43 @@ class MavisExpenseApp {
   _setHistoryView(view) {
     this._historyView = view;
     const listBtn = document.getElementById('pwa-view-btn-list');
+    const locBtn = document.getElementById('pwa-view-btn-loc');
     const calBtn = document.getElementById('pwa-view-btn-cal');
     const listEl = document.getElementById('pwa-view-list');
+    const locEl = document.getElementById('pwa-view-loc');
     const calEl = document.getElementById('pwa-view-calendar');
+    const titleText = document.getElementById('history-title-text');
+    const calTitle = document.getElementById('calender-title-text');
+    const locTitle = document.getElementById('loc-title-text');
+    const filterExpenses = document.getElementById('filter-expenses');
 
     if (listBtn) { listBtn.classList.toggle('active', view === 'list'); listBtn.setAttribute('aria-pressed', view === 'list'); }
     if (calBtn) { calBtn.classList.toggle('active', view === 'cal'); calBtn.setAttribute('aria-pressed', view === 'cal'); }
+    if (locBtn) { locBtn.classList.toggle('active', view === 'loc'); locBtn.setAttribute('aria-pressed', view === 'loc'); }
     if (listEl) listEl.style.display = view === 'list' ? 'flex' : 'none';
+    if (locEl) locEl.style.display = view === 'loc' ? 'flex' : 'none';
     if (calEl) calEl.style.display = view === 'cal' ? 'flex' : 'none';
 
     if (view === 'list') {
-      const titleText = document.getElementById('history-title-text');
       if (titleText) titleText.textContent = 'Visit List';
-      const calTitle = document.getElementById('calender-title-text');
-      if (calTitle) calTitle.textContent = 'Calendar View';
+      if (calTitle) calTitle.textContent = 'Calendar';
+      if (filterExpenses) filterExpenses.style.display = 'flex';
       this.renderListView();
     }
     if (view === 'cal') {
-      const listTitle = document.getElementById('history-title-text');
-      if (listTitle) listTitle.textContent = 'List View';
-      // Exit archive mode if user switches to calendar
+      if (titleText) titleText.textContent = 'List';
+      if (filterExpenses) filterExpenses.style.display = 'none';
       if (this._archiveMode) {
         this._archiveMode = false;
         const archiveBtn = document.getElementById('btn-archive-view');
         if (archiveBtn) archiveBtn.classList.remove('active');
       }
       this.renderCalendarView();
+    }
+    if (view === 'loc') {
+      if (locTitle) titleText.textContent = '';
+      if (filterExpenses) filterExpenses.style.display = 'none';
+      this.renderLocationsList();
     }
     if (typeof lucide !== 'undefined') this._refreshIcons();
   }
@@ -2839,6 +3245,22 @@ class MavisExpenseApp {
     // Re-render list in archive mode
     this.renderListView();
   }
+
+
+  _toggleFilter() {
+    const filterBnt = document.getElementById('filter-expenses');
+    const filterBar = document.getElementById('filter-bar');
+
+    // If it's already open, close it. Otherwise, open it.
+    if (filterBar.style.display === 'flex') {
+      filterBar.style.display = 'none';
+      filterBnt.classList.remove('active');
+    } else {
+      filterBar.style.display = 'flex';
+      filterBnt.classList.add('active');
+    }
+  }
+
 
   // ──────────────────────────────────────────────────────────
   //  RENDER HISTORY — main entry point (fetches + dispatches)
@@ -2947,7 +3369,69 @@ class MavisExpenseApp {
   // ──────────────────────────────────────────────────────────
   //  POPULATE FILTER DROPDOWNS
   // ──────────────────────────────────────────────────────────
+
   _populateHistoryFilters() {
+    const yearSel = document.getElementById('pwa-filter-year');
+    const monthSel = document.getElementById('pwa-filter-month');
+    const locSel = document.getElementById('pwa-filter-location');
+    if (!yearSel || !monthSel) return;
+
+    const prevYear = yearSel.value;
+    const prevMonth = monthSel.value;
+    const prevLoc = locSel ? locSel.value : 'all';
+
+    const years = new Set();
+    const months = new Set();
+    const locations = new Set();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Extract unique data
+    (this._allRows || []).forEach(row => {
+      // 1. Dates
+      const key = this._parseDateToKey(row.date);
+      if (key) {
+        const [y, m] = key.split('-');
+        if (y) years.add(y);
+        if (m) months.add(m);
+      }
+      // 2. Locations via visitMap lookup
+      const vId = row.visit_id;
+      const dest = (this._visitMap && this._visitMap[vId]) ? this._visitMap[vId].destination : null;
+      if (dest && dest.trim() !== '') locations.add(dest.trim());
+    });
+
+    // Populate Year Dropdown
+    const yearArr = Array.from(years).sort().reverse();
+    const yearLabel = yearArr.length === 1 ? yearArr[0] : (yearArr.length ? `${yearArr.length} Years` : 'All Yrs');
+    yearSel.innerHTML = `<option value="all">${yearLabel}</option>`;
+    yearArr.forEach(y => yearSel.appendChild(new Option(y, y)));
+
+    // Populate Month Dropdown
+    const monthArr = Array.from(months).sort();
+    const monthLabel = monthArr.length === 1 ? monthNames[parseInt(monthArr[0], 10) - 1] : (monthArr.length ? `${monthArr.length} Months` : 'All Mos');
+    monthSel.innerHTML = `<option value="all">${monthLabel}</option>`;
+    monthArr.forEach(m => {
+      const idx = parseInt(m, 10) - 1;
+      if (monthNames[idx]) monthSel.appendChild(new Option(monthNames[idx], m));
+    });
+
+    // Populate Location Dropdown
+    if (locSel) {
+      const locArr = Array.from(locations).sort();
+      const locLabel = locArr.length === 1 ? locArr[0] : (locArr.length ? `${locArr.length} Locations` : 'All Locations');
+      locSel.innerHTML = `<option value="all">${locLabel}</option>`;
+      locArr.forEach(l => locSel.appendChild(new Option(l, l)));
+      // Restore location
+      if (prevLoc !== 'all' && [...locSel.options].some(o => o.value === prevLoc)) locSel.value = prevLoc;
+    }
+
+    // Restore selections
+    if ([...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
+    if (prevMonth !== 'all' && [...monthSel.options].some(o => o.value === prevMonth)) monthSel.value = prevMonth;
+  }
+
+
+  _populateHistoryFiltersOld() {
     const yearSel = document.getElementById('pwa-filter-year');
     const monthSel = document.getElementById('pwa-filter-month');
     if (!yearSel || !monthSel) return;
@@ -2955,31 +3439,51 @@ class MavisExpenseApp {
     const prevYear = yearSel.value;
     const prevMonth = monthSel.value;
 
+    // 1. Collect unique years and months from actual data
     const years = new Set();
+    const months = new Set();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
     (this._allRows || []).forEach(row => {
-      const key = this._parseDateToKey(row.date);
-      if (key) years.add(key.split('-')[0]);
+      const key = this._parseDateToKey(row.date); // Expecting "YYYY-MM"
+      if (key) {
+        const [y, m] = key.split('-');
+        if (y) years.add(y);
+        if (m) months.add(m);
+      }
     });
 
-    yearSel.innerHTML = '<option value="all">All Yrs</option>';
+    // 2. Populate Year Dropdown with dynamic dynamic default label
+    const yearCount = years.size;
+    const yearLabel = `${yearCount} Year${yearCount === 1 ? '' : 's'}`;
+
+    yearSel.innerHTML = `<option value="all">${yearLabel}</option>`;
     Array.from(years).sort().reverse().forEach(y => {
       const o = document.createElement('option');
-      o.value = y; o.textContent = y;
+      o.value = y;
+      o.textContent = y;
       yearSel.appendChild(o);
     });
 
-    monthSel.innerHTML = '<option value="all">All Mos</option>';
-    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].forEach((m, i) => {
-      const o = document.createElement('option');
-      o.value = String(i + 1).padStart(2, '0');
-      o.textContent = m;
-      monthSel.appendChild(o);
+    // 3. Populate Month Dropdown with dynamic default label & only existing months
+    const monthCount = months.size;
+    const monthLabel = `${monthCount} Month${monthCount === 1 ? '' : 's'}`;
+
+    monthSel.innerHTML = `<option value="all">${monthLabel}</option>`;
+    Array.from(months).sort().forEach(m => {
+      const monthIndex = parseInt(m, 10) - 1;
+      if (monthNames[monthIndex]) {
+        const o = document.createElement('option');
+        o.value = m;
+        o.textContent = monthNames[monthIndex];
+        monthSel.appendChild(o);
+      }
     });
 
+    // 4. Restore previous selections if valid
     if ([...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
     if (prevMonth !== 'all' && [...monthSel.options].some(o => o.value === prevMonth)) monthSel.value = prevMonth;
   }
-
   // ──────────────────────────────────────────────────────────
   //  RENDER LIST VIEW
   // ──────────────────────────────────────────────────────────
@@ -2988,38 +3492,45 @@ class MavisExpenseApp {
     if (!container) return;
     container.innerHTML = '';
 
-    // ── Archive mode banner ───────────────────────────────────
-    if (this._archiveMode) {
-      const banner = document.createElement('div');
-      banner.className = 'archive-mode-banner';
-      banner.innerHTML = `<svg data-lucide="archive" width="13" height="13"></svg> Archived Items — <span style="opacity:0.75; margin-left:0.2rem;">click the archive icon again to return</span>`;
-      container.appendChild(banner);
-    }
 
+
+    // ── Filter values ─────────────────────────────────────────
     const yearFilter = document.getElementById('pwa-filter-year')?.value || 'all';
     const monthFilter = document.getElementById('pwa-filter-month')?.value || 'all';
     const statusFilter = document.getElementById('pwa-filter-status')?.value || 'all';
+    const locationFilter = document.getElementById('pwa-filter-location')?.value || 'all';
 
-    // ── Source rows: archived mode uses _archivedRows; normal mode filters OUT archived ──
+    // ── Source rows ───────────────────────────────────────────
     const sourceRows = this._archiveMode
       ? (this._archivedRows || [])
       : (this._allRows || []).filter(row => (row.archive || '').toLowerCase() !== 'yes');
 
+    // ── Filter Rows ───────────────────────────────────────────
     const filteredRows = sourceRows.filter(row => {
       const key = this._parseDateToKey(row.date);
       if (!key) return false;
       const [y, m] = key.split('-');
+
       if (yearFilter !== 'all' && y !== yearFilter) return false;
       if (monthFilter !== 'all' && m !== monthFilter) return false;
+
       if (statusFilter !== 'all') {
         const s = (row.status || row.sync_status || '').toLowerCase();
         const isSynced = s === 'synced';
         if (statusFilter === 'synced' && !isSynced) return false;
         if (statusFilter === 'pending' && isSynced) return false;
       }
+
+      if (locationFilter !== 'all') {
+        const vId = row.visit_id;
+        const dest = (this._visitMap && this._visitMap[vId]) ? this._visitMap[vId].destination : (row.destination || '');
+        if (dest.trim().toLowerCase() !== locationFilter.trim().toLowerCase()) return false;
+      }
+
       return true;
     });
 
+    // ── Filter Visits (Uses yearFilter & monthFilter) ─────────
     const filteredVisits = (this._allVisits || []).filter(v => {
       const key = this._parseDateToKey(v.date);
       if (!key) return false;
@@ -3045,9 +3556,9 @@ class MavisExpenseApp {
 
     // Render each group
     grouped.forEach(g => container.appendChild(this._buildHistoryGroup(g)));
-
     this._refreshIcons(container);
   }
+
 
   _buildHistoryGroup(group) {
     const gEl = document.createElement('div');
@@ -3061,23 +3572,46 @@ class MavisExpenseApp {
     const rate = parseFloat(group.mileage_rate) || 0.67;
     const mileVal = dist > 0 ? `£${(dist * rate).toFixed(2)}` : '';
 
+
     const syncStatus = this._computeVisitSyncStatus(group.expenses);
     const syncDotCol = syncStatus === 'ALL' ? 'var(--secondary)' : (syncStatus === 'PART' ? 'hsl(38,95%,55%)' : 'var(--danger)');
     const expCount = group.expenses.length;
     const expSum = group.expenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
 
+    const open = group.status === 'Open';
+
+    this._renderVisitBar();
+
+
+
+
     const hEl = document.createElement('div');
     hEl.className = 'history-group-header';
+    // 1. Pre-calculate dynamic sub-elements
+    const activeIndicator = open ? '<span class="active-visit"></span>' : '';
+
+    const rightContent = open
+      ? `<span class="btn btn-primary" onclick="event.stopPropagation(); app.endVisit('${group.visit_id}')">
+      <div class="group-meta badge" style="background-color:${syncDotCol}">${expCount}</div>
+      End Visit
+      </span>`
+      : `
+    ${expCount > 0 ? `<div class="group-meta" style="background-color:${syncDotCol}">${expCount} item${expCount !== 1 ? 's' : ''}</div>` : ''}
+    <div class="group-sum">£${expSum.toFixed(2)}</div>
+  `;
+
+    if (open || expCount === 0) {
+      gEl.style.display = 'none';
+    }
+    // 2. Clean, straightforward HTML assignment
     hEl.innerHTML = `
+      ${activeIndicator}
       <div class="group-title">
-        <strong class="visit-destination">${formatDateFriendly(dateStr)} &bull; ${this._escHTML(destName)}</strong>
-        <div class="group-meta">
-          <span class="group-items" style="border-color:${syncDotCol}">
-          ${expCount > 0 ? `<span style="color:${syncDotCol}">&#9679;</span>` : ''} ${expCount} item${expCount !== 1 ? 's' : ''} &bull; £${expSum.toFixed(2)}</span>
-          ${distStr ? `<span class="group-mileage">${distStr ? `${distStr}` : ''}${mileVal ? ` &bull; ${mileVal}` : ''}</span>` : ''}
-          </div>
+        <div class="visit-destination">${this._escHTML(destName)}</div>
+        <div class="visit-date">${formatDateFriendly(dateStr)}</div>
       </div>
-      `;
+      ${rightContent}
+    `;
 
 
     const cEl = document.createElement('div');
@@ -3085,13 +3619,35 @@ class MavisExpenseApp {
 
     group.expenses.forEach(log => cEl.appendChild(this._buildListLogItem(log)));
 
+
     hEl.addEventListener('click', () => {
-      cEl.classList.toggle('open');
-      hEl.classList.toggle('open');
+      if (open) {
+        this.switchTab('record');
+      }
+      else if (expCount > 0) {
+        cEl.classList.toggle('open');
+        hEl.classList.toggle('open');
+      }
+      else if (expCount === 0) {
+        hEl.classList.toggle('open');
+      }
     });
+
+
+    const fEl = document.createElement('div');
+    fEl.className = 'history-group-footer';
+    fEl.innerHTML = `
+      <div class="group-footer">
+        ${distStr ? `<span class="group-mileage">${distStr ? `${distStr}` : ''}${mileVal ? ` &bull; ${mileVal}` : ''}</span>` : ''} </div>
+        
+        ${expCount === 0 ? `<button class="btn btn-sm btn-danger" onclick="(e)=>{e.stopPropagation();this.deleteVisit('${group.visit_id}')}">Delete</button>` :
+        `<button class="btn btn-sm btn-success" onclick="(e)=>{e.stopPropagation();this.addExpense('${group.visit_id}')}">Add Expense</button>`}
+        
+    `;
 
     gEl.appendChild(hEl);
     gEl.appendChild(cEl);
+    gEl.appendChild(fEl)
     return gEl;
   }
 
@@ -3103,52 +3659,28 @@ class MavisExpenseApp {
     const amtText = amountVal > 0 ? `£${amountVal.toFixed(2)}` : '£0.00';
 
     // ── Status-aware swipe label config ──────────────────────────────────────
-    // LEFT swipe: Claim — only meaningful when NOT already synced
     const leftAction = isSynced ? 'pending' : 'synced';
     const leftLabel = isSynced ? 'Pending' : 'Claim';
     const leftIcon = isSynced ? 'check-circle-2' : 'check-circle';
-    // RIGHT swipe: Archive pending items; Restore (→pending) archived/synced items
     const rightAction = isArchived ? 'pending' : 'archive';
     const rightLabel = isArchived ? 'Restore' : 'Archive';
     const rightIcon = isArchived ? 'rotate-ccw' : 'archive';
 
     let attachmentIcon = '';
-    let attachmentButton = '';
     if (log.receipt_url || log.image_base64) {
-      attachmentIcon = `<span class="attachment-icon" title="Has attachment"><svg data-lucide="paperclip" width="12" height="12"></svg></span>`;
-      attachmentButton = `<div class="btn btn-outline btn-sm action-btn-attach" style="display:flex; flex-direction:column; align-items:stretch; height:auto; text-align:left; cursor:pointer;" role="button" tabindex="0" > 
-       ${log.notes ? `
-        <div class="receipt-dummy" >
-         <div>${this._escHTML(log.vendor || 'Expense')}</div>
-         <div>${this._escHTML(log.category)} Receipt</div>
-         <div class="log-item-more">${formatDateFriendly(log.date)}</div>
-         <div class="receipt-note" >${this._escHTML(log.notes)}</div>
-         <div>${amtText}</div>
-
-         <div class="action-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-             <button class="action-btn" onclick="event.stopPropagation(); app.openExpenseForEdit(${this._escAttr(JSON.stringify(log))}); app.expenseMode(true)"><svg data-lucide="edit-3" width="14" height="14"></svg></button>
-             <button class="action-btn" onclick="event.stopPropagation(); app.openAttachmentModalForExpense('${log.id}')"><svg data-lucide="paperclip" width="14" height="14"></svg></button>
-             <button class="action-btn archive-btn ${isArchived ? 'active-action' : ''}" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', '${rightAction}')"><svg data-lucide="${rightIcon}" width="14" height="14"></svg></button>
-             <button class="action-btn trash-btn" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', 'trash')"><svg data-lucide="trash-2" width="14" height="14"></svg></button>
-         </div>
-
-         <div class="action-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-              
-            <button class="action-btn ${status === 'pending' && !isArchived ? 'active-action' : ''}" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', 'pending')"><svg data-lucide="clock" width="14" height="14"></svg> Pending</button>
-            <button class="action-btn claim-btn ${isSynced ? 'active-action' : ''}" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', 'synced')"><svg data-lucide="check-circle" width="14" height="14"></svg> Claimed</button>
-  
-         
-            </div>
-
-
-        </div>
-        ` : `<div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; width:100%;"><svg data-lucide="image" width="14" height="14"></svg> View Receipt</div>`}
-      </div>`;
+      attachmentIcon = `<span class="attachment-icon" title="Has attachment"> &bull; ${this._escHTML(log.category || '')} &nbsp; <svg data-lucide="paperclip" width="12" height="12"></svg></span>`;
     } else if (log.receipt_pending) {
-      attachmentIcon = `<span title="Receipt upload pending" style="color:var(--warning)">⏳</span>`;
+      attachmentIcon = `<span title="Receipt upload pending" style="color:var(--warning)">&bull; ${this._escHTML(log.category || '')} &nbsp; <svg data-lucide="paperclip" width="12" height="12"></svg></span>`;
     }
 
-    // ── Status-aware swipe label config moved up ─────────────────────────────
+    const imgSrc = log.receipt_url || log.image_base64 || '';
+    const dummyId = `rd-${log.id}`;
+
+    // Gradient palette reuses the visit-colour logic (index 0 as default)
+    const dGradient = `linear-gradient(135deg, hsl(258, 50%, 22%) 0%, hsl(288, 40%, 10%) 100%)`;
+    const dColor = 'hsl(258, 70%, 62%)';
+    const dInitial = (log.vendor || 'E').charAt(0).toUpperCase();
+
     const div = document.createElement('div');
     div.className = 'log-item';
     div.dataset.id = log.id;
@@ -3170,7 +3702,7 @@ class MavisExpenseApp {
       if (!state.active && Math.abs(diff) < ACTIVATE) return;
       state.active = true;
 
-      const content = div.querySelector('.log-item-info');
+      const content = div.querySelector('.receipt-dummy-card');
       if (!content) return;
 
       // Clamp at ±THRESHOLD so item stays visible at edge
@@ -3195,7 +3727,7 @@ class MavisExpenseApp {
       const wasActive = state.active;
       this._dragState = null;
 
-      const content = div.querySelector('.log-item-info');
+      const content = div.querySelector('.receipt-dummy-card');
       const bgLeft = div.querySelector('.log-item-swipe-left');
       const bgRight = div.querySelector('.log-item-swipe-right');
       if (!wasActive || !content) return;
@@ -3211,17 +3743,14 @@ class MavisExpenseApp {
       if (diff < -THRESHOLD) {
         // LEFT swipe
         if (!leftAction) {
-          // Synced — bounce back with a small shake to signal "no action"
           content.style.transition = 'transform 0.15s ease';
           content.style.transform = 'translateX(-8px)';
           setTimeout(() => snapBack(), 160);
           return;
         }
-        // Freeze at threshold, update background to "Updating…"
         content.style.transition = 'transform 0.15s ease';
         content.style.transform = `translateX(-${THRESHOLD}px)`;
         if (bgLeft) { bgLeft.innerHTML = '<span style="padding:0 1rem">Updating…</span>'; }
-        // Perform action, then slide back, then update DOM node
         this.updateExpenseStatus(log.id, leftAction, true).then(() => {
           snapBack();
           setTimeout(() => this.refreshSingleItemNode(log.id), 380);
@@ -3264,9 +3793,9 @@ class MavisExpenseApp {
       document.addEventListener('mouseup', onUp);
     });
 
-    // ── Swipe background labels (status-aware) ───────────────────────────
+    // Swipe background labels
     const leftBgStyle = isSynced
-      ? 'background: linear-gradient(90deg, hsla(258,60%,40%,0.6), hsla(258,60%,55%,0.4));'
+      ? 'background: linear-gradient(90deg, hsla(0, 89%, 56%, 1.00), hsla(9, 100%, 50%, 0.96));'
       : 'background: linear-gradient(90deg, hsla(161,84%,36%,1), hsla(161,84%,48%,0.85));';
 
     div.innerHTML = `
@@ -3278,46 +3807,95 @@ class MavisExpenseApp {
         <span>${rightLabel}</span>
         <svg data-lucide="${rightIcon}" width="22" height="22"></svg>
       </div>
-      <div class="log-item-info">
-        <div class="log-item-header">
-          <div class="log-info">
-            <div class="log-item-title"> ${this._escHTML(log.vendor || 'Expense')} ${log.category ? ' &bull; ' + this._escHTML(log.category) : ''}</div>
-            ${log.receipt_pending && !log.receipt_url ? `
-              <div id="receipt-status-${log.id}" class="receipt-status receipt-status--failed" onclick="event.stopPropagation()">
-                ⚠️ Receipt not uploaded —
-                <button class="inline-retry-btn" onclick="event.stopPropagation(); app.retryReceiptUpload('${log.id}')">Retry</button>
-              </div>` : ''}
-            <div class="log-item-more"><svg class="chevron" data-lucide="chevron-down" width="16" height="16"></svg> ${formatDateFriendly(log.date)} ${attachmentIcon}</div>
-          </div>
-          <div class="log-item-right">
-            <span class="log-amount">${amtText}</span>
-            <span class="log-badge ${isSynced ? 'badge-synced' : isArchived ? 'badge-archived' : 'badge-pending'}">${isSynced ? 'Synced' : isArchived ? 'Archived' : 'Pending'}</span>
-          </div>
+      
+        <div class="receipt-dummy-card" id="${dummyId}">
+          
+
+            <!-- FRONT: summary + actions -->
+            <div class="receipt-dummy-front" 
+            style="background:${dGradient};border:1px solid ${dColor}; 
+            border-right:${isSynced ? '5px solid  var(--secondary)' : '5px solid  orange'};
+            border-left:${isArchived ? '5px solid var(--text-primary)' : ''}">           
+
+           
+              <!-- Collapsed / Header state -->
+              <div class="list-card-header">
+                <div class="list-card-vendor-circle" style="background:${dColor};color:#fff;">${dInitial}</div>
+                <div class="list-card-title-area">
+                  <div class="receipt-dummy-vendor">${this._escHTML(log.vendor || 'Expense')}</div>
+                  <div class="list-card-meta">  ${formatDateFriendly(log.date)} ${attachmentIcon}</div>
+                </div>
+                <div class="list-card-right-area">
+                  <div class="receipt-dummy-amount">${amtText}</div>
+                  <span class="log-badge ${isSynced ? 'badge-synced' : isArchived ? 'badge-archived' : 'badge-pending'}">${isSynced ? 'Claimed' : isArchived ? 'Archived' : 'Pending'}</span>
+                </div>
+              </div>
+
+              <!-- Expanded state content -->
+              <div class="list-card-expanded-content">
+
+
+
+                ${log.notes ? `
+                  <div class="fallback-notes-bubble"">
+                  <div class="expense-card-category"> ${this._escHTML(log.category || '')} </div>
+                   ${this._escHTML(log.notes)}
+                  </div>` : ''}
+
+                <div class="receipt-dummy-amount">${amtText}</div>
+                
+                ${log.receipt_pending && !log.receipt_url ? `
+                  <div id="receipt-status-${log.id}" class="receipt-status receipt-status--failed" onclick="event.stopPropagation()" style="margin-bottom:0.5rem;">
+                    ⚠️ Receipt not uploaded —
+                    <button class="inline-retry-btn" onclick="event.stopPropagation(); app.retryReceiptUpload('${log.id}')">Retry</button>
+                  </div>` : ''}
+
+                <!-- Action buttons -->
+                <div class="action-buttons" style="display:flex;gap:0.5rem;margin-top:auto;flex-wrap:wrap;width:100%">
+                  <button class="action-btn" onclick="event.stopPropagation(); app.openExpenseForEdit(${this._escAttr(JSON.stringify(log))}); app.expenseMode(true)"><svg data-lucide="edit-3" width="14" height="14"></svg></button>
+                  <button class="action-btn archive-btn ${isArchived ? 'active-action' : ''}" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', '${rightAction}')"><svg data-lucide="${rightIcon}" width="14" height="14"></svg></button>
+                  <button class="action-btn trash-btn" onclick="event.stopPropagation(); app.updateExpenseStatus('${log.id}', 'trash')"><svg data-lucide="trash-2" width="14" height="14"></svg></button>
+                  
+                  <!-- Unified claimed/pending toggle button -->
+                  <button class="action-btn claim-toggle-btn ${isSynced ? 'claimed' : 'pending'}" onclick="event.stopPropagation(); app.toggleClaimStatus('${log.id}', ${isSynced})">
+                    <svg data-lucide="${isSynced ? 'check-circle' : 'clock'}" width="14" height="14"></svg>
+                    <span>${isSynced ? 'Claimed' : 'Pending'}</span>
+                  </button>
+                   ${imgSrc ? `
+                  <button type="button" class="receipt-dummy-flip-btn" onclick="event.stopPropagation(); document.getElementById('${dummyId}').classList.toggle('flipped')" title="View Receipt">
+                    <svg data-lucide="paperclip" width="16" height="16"></svg>
+                  </button>
+                  ` : ''}
+                </div>
+              </div>
+
+            
+            </div>
+
+            <!-- BACK: receipt image -->
+            <div class="receipt-dummy-back" style="border:2px solid ${dColor};">
+              <img src="${this._formatImageUrl(imgSrc)}" class="receipt-dummy-back-img" onload="this.classList.add('loaded')" onerror="this.style.display='none'" alt="Receipt">
+              <div class="receipt-dummy-back-placeholder" style="${imgSrc ? 'display:none' : ''}">
+                <svg data-lucide="image-off" width="28" height="28"></svg>
+                <span>No receipt image</span>
+              </div>
+              <button type="button" class="receipt-dummy-close-btn" onclick="event.stopPropagation(); document.getElementById('${dummyId}').classList.remove('flipped')" title="Close">
+                <svg data-lucide="x" width="16" height="16"></svg>
+              </button>
+            </div>
+
+          
         </div>
-        <div class="log-item-details">
-          ${attachmentButton}
-         
-        </div>
-      </div>
+    
     `;
 
-    // Expand/collapse on content click (only if not a swipe)
-    const headerEl = div.querySelector('.log-item-header');
-    const detailsEl = div.querySelector('.log-item-details');
-
-    if (headerEl) {
-      headerEl.addEventListener('click', () => {
+    // Toggle expand/collapse on click of the log-item-info (unless swipe is active or child buttons are clicked)
+    const infoEl = div.querySelector('.receipt-dummy-card');
+    if (infoEl) {
+      infoEl.addEventListener('click', (e) => {
         if (this._dragState && this._dragState.active) return;
-        div.classList.toggle('expanded');
-        this._refreshIcons(div);
-      });
-    }
-
-    if (detailsEl) {
-      detailsEl.addEventListener('click', (e) => {
-        if (this._dragState && this._dragState.active) return;
-        // Don't close if they clicked an actual button inside details
-        if (e.target.closest('button') || e.target.closest('.action-btn')) return;
+        // Don't toggle if clicked a button or interactive child element
+        if (e.target.closest('button') || e.target.closest('.action-btn') || e.target.closest('.receipt-dummy-flip-btn') || e.target.closest('.receipt-dummy-close-btn')) return;
         div.classList.toggle('expanded');
         this._refreshIcons(div);
       });
@@ -3608,6 +4186,15 @@ class MavisExpenseApp {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
   }
+
+
+  _formatImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('/')) return url;
+    return 'receipts/' + url;
+  }
+
+
 
   // ── Safe scoped Lucide icon initialisation ────────────────
   // Scopes createIcons to a specific container to prevent re-processing
@@ -3904,7 +4491,7 @@ class MavisExpenseApp {
       const selectMenu = document.getElementById('visit-select-past');
       if (selectMenu) {
         selectMenu.focus();
-
+   
         // 2. FIX: Use standard native .showPicker() invocation rather than fake events
         if (typeof selectMenu.showPicker === 'function') {
           try {
@@ -3994,7 +4581,7 @@ class MavisExpenseApp {
 
     const isSyncedAction = action === 'synced';
     const newStatus = isSyncedAction ? 'synced' : 'pending';
-    const archiveVal = action === 'archive' ? 'Yes' : (hist.archive || 'No');
+    const archiveVal = action === 'archive' ? 'Yes' : 'No';
     const newSyncAction = action === 'trash' ? 'delete' : 'update';
 
     const updated = {

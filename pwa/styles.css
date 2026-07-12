@@ -85,6 +85,7 @@ body {
 /* ── Tab Content ─────────────────────────────────────────── */
 .tab-content {
   position: relative;
+  gap: 10px;
   display: none;
   flex: 1;
   overflow-y: hidden;
@@ -97,7 +98,6 @@ body {
 .tab-content.active {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
 .tab-content.active>* {
@@ -173,7 +173,7 @@ body {
   cursor: pointer;
   user-select: none;
   background: var(--secondary);
-  color: white;
+  color: black;
   border-radius: 10px;
   padding: 10px;
   z-index: 2;
@@ -188,12 +188,32 @@ body {
   gap: 8px;
   cursor: pointer;
   user-select: none;
+
+  z-index: 2;
+}
+
+.camera {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
   background: var(--bg-card-hover);
-  color: white;
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 10px;
   z-index: 2;
 }
+
+.aiText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.7rem;
+  color: var(--bg-card-hover);
+}
+
 
 .form-close {
   display: none;
@@ -398,7 +418,7 @@ body {
 
 /* Navigation Indicator States */
 .nav-item.active-nav-tab {
-  color: var(--secondary) !important;
+  color: var(--primary) !important;
 }
 
 .nav-item.active-nav-tab .fab-circle {
@@ -550,6 +570,13 @@ body {
   border-color: hsla(346, 84%, 61%, 0.35);
 }
 
+.btn-success {
+  background: hsl(139, 80%, 88%);
+  color: green;
+  border-color: hsl(140, 71%, 80%);
+}
+
+
 .btn-danger:hover:not(:disabled) {
   background: hsla(346, 84%, 61%, 0.22);
 }
@@ -566,29 +593,34 @@ body {
 }
 
 /* ── Card Carousel Wrapper ──────────────────────────────── */
+
 #card-carousel-wrapper {
   position: relative;
-  flex-grow: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  flex-grow: 1;
+  margin-bottom: 20px;
+
 }
 
+/* The scrollable track — slides in multiples of wrapper width */
 #card-track {
   display: flex;
-  gap: 12px;
+  gap: 0;
   padding: 0;
   flex-grow: 1;
   min-height: 0;
   overflow: visible;
   align-items: stretch;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.52s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: transform;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   touch-action: pan-y;
+
 }
 
 #card-track.dragging {
@@ -596,34 +628,39 @@ body {
   cursor: grabbing;
 }
 
-/* Disable card transitions while actively dragging */
-#card-track.dragging .expense-card {
-  transition: none !important;
-}
 
-/* ── Individual Expense Card ────────────────────────────── */
+#card-track.dragging .expense-card {}
+
+/*
+   ── Individual Expense Card ──────────────────────────────
+   Each card "slot" is exactly 100% of the wrapper width.
+   The visible card is 88% wide, horizontally centred inside
+   its slot via auto side margins.
+*/
 .expense-card {
   flex-shrink: 0;
-  width: 88vw;
-  max-width: 520px;
+  /* slot width = full wrapper; visible card is centred within */
+  width: 100%;
+  /* visual card is inset 6% each side → 88% wide, always centred */
+  padding: 10px 0;
+  box-sizing: border-box;
   perspective: 1200px;
   border-radius: var(--radius-card);
   display: flex;
   align-items: stretch;
-  /* Smooth scale & opacity when snapping between cards */
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.45s ease, transform 0.52s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: transform, opacity;
   transform-origin: center center;
-  height: 500px;
 }
 
+/* card-inner must fill its parent which now has padding */
 .card-inner {
   position: relative;
   width: 100%;
   transform-style: preserve-3d;
   transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
   border-radius: inherit;
+
 }
 
 .card-inner.flipped {
@@ -637,6 +674,8 @@ body {
   -webkit-backface-visibility: hidden;
   border-radius: inherit;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 .card-front {
@@ -644,8 +683,15 @@ body {
 }
 
 .card-back {
+  /* Change 'background' to 'background-color' to avoid wiping out the JS image */
+  background-color: var(--bg-card);
+
+  /* Use 'cover' to fill the card, or 'contain' to show the whole receipt */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
   transform: rotateY(180deg);
-  background: var(--bg-card);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -696,13 +742,19 @@ body {
 
 .fallback-card-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: row;
+  gap: 10px;
   align-items: center;
+  margin-bottom: 10px;
+}
+
+.fallback-card-header.sub {
+  flex-direction: row;
 }
 
 .fallback-vendor-circle {
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -722,13 +774,14 @@ body {
   border: 1px solid;
   border-radius: 20px;
   padding: 4px 10px;
+  width: fit-content;
 }
 
 .fallback-card-body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 1rem;
 }
 
@@ -742,29 +795,34 @@ body {
 }
 
 .fallback-vendor-large {
-  font-size: 0.95rem;
-  font-weight: 500;
-  opacity: 0.8;
-  margin-top: 0.4rem;
+  font-size: 1.75rem;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .fallback-notes-bubble {
-  margin-top: 0.8rem;
   padding: 8px 12px;
+  margin-bottom: 10px;
   background: rgba(255, 255, 255, 0.05);
   border-left: 2px solid;
-  border-radius: 0 8px 8px 0;
-  font-size: 0.73rem;
+  border-radius: 0 18px 18px 0;
+  font-size: 0.93rem;
+  gap: 10px;
   font-style: italic;
   color: rgba(255, 255, 255, 0.65);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  height: auto;
+  max-height: 50%;
 }
+
+.log-item .list-card-expanded-content .fallback-notes-bubble {
+  font-size: 0.75rem;
+}
+
 
 .fallback-card-footer {
   display: flex;
@@ -778,7 +836,8 @@ body {
   gap: 5px;
   font-size: 0.68rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(255, 255, 255);
+
 }
 
 .expense-card-overlay {
@@ -786,11 +845,51 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1.2rem 1rem 1rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  padding: 0.75rem 1rem 1rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.5) 65%, transparent 100%);
   color: #fff;
-  pointer-events: none;
+  /* Allow clicks on the status buttons */
+  pointer-events: auto;
   z-index: 3;
+}
+
+/* Status action row inside the overlay */
+.overlay-status-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+
+.overlay-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  pointer-events: auto;
+}
+
+.overlay-status-btn.active-claimed {
+  background: hsla(161, 84%, 48%, 0.35);
+  border-color: var(--secondary);
+  color: var(--secondary);
+}
+
+.overlay-status-btn.active-archived {
+  background: hsla(40, 100%, 55%, 0.25);
+  border-color: var(--warning);
+  color: var(--warning);
 }
 
 .expense-card-amount {
@@ -811,24 +910,32 @@ body {
 }
 
 .expense-card-category {
-  display: inline-block;
-  margin-top: 0.4rem;
-  font-size: 0.65rem;
-  font-weight: 600;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--primary);
   border-radius: 20px;
   padding: 2px 8px;
+  margin: 10px 0;
+  width: fit-content;
+}
+
+.expense-btn-row {
+  position: absolute;
+  display: flex;
+  bottom: 16px;
+  right: 16px;
+  gap: 10px;
+  z-index: 4;
 }
 
 /* flip-to-details button on past expense front face */
-.expense-card-flip-btn {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
+.eCardBtn {
+  padding: 10px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(6px);
@@ -838,11 +945,19 @@ body {
   justify-content: center;
   cursor: pointer;
   color: white;
-  z-index: 4;
   transition: background var(--transition);
 }
 
-.expense-card-flip-btn:hover {
+.eCardBtn svg {
+  stroke: white;
+  width: 24px;
+  height: 24px;
+}
+
+
+
+
+.eCardBtn:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
@@ -908,7 +1023,8 @@ body {
 }
 
 /* ── Dot indicator ──────────────────────────────────────── */
-#card-dots {
+#card-dots,
+#group-dots {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -917,48 +1033,108 @@ body {
   flex-shrink: 0;
 }
 
+#card-dots {
+  justify-content: flex-start;
+}
+
+
+
+
+
+.group-dot {
+  min-width: 8px;
+  height: 8px;
+  max-width: 8px;
+  overflow: hidden;
+  padding: 4px;
+  gap: 3px;
+  border-radius: 60px;
+  background: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  transition:
+    max-width 0.5s ease-in-out,
+    height 0.5s ease-in-out;
+
+}
+
+.group-dot.active {
+  max-width: 250px;
+  height: 12px;
+}
+
+.group-dot.active .card-dot {
+  display: flex !important;
+}
+
+
+.group-dot .card-dot {
+  display: none !important;
+}
+
+/* First Group Square Dot */
+.group-dot.first-group {
+
+  background: var(--secondary) !important;
+  transition: transform 0.3s ease;
+}
+
+.group-dot.first-group.active {
+  background: var(--secondary) !important;
+
+}
+
+
+
 .card-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--dot-color, var(--border-glow));
+  border: 1px solid var(--dot-color, var(--border-glow));
+  background: transparent;
   transition:
     width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
     border-radius 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.4s ease,
-    opacity 0.4s ease;
+    background-color 0.4s ease;
   cursor: pointer;
-  opacity: 0.45;
 }
 
-.card-dot.active {
-  width: 22px;
-  border-radius: 4px;
-  background: var(--dot-color, var(--primary));
-  opacity: 1;
+.card-dot.secondary {
+  display: none;
 }
 
-/* Separator between visit dot-groups */
-.card-dot-sep {
-  width: 1.5px;
-  height: 12px;
-  background: var(--border-glow);
-  border-radius: 1px;
-  opacity: 0.5;
-  margin: 0 2px;
+/* Active State for secondary dots */
+.card-dot.secondary.active {
+  background: var(--dot-color, var(--border-glow));
 }
+
+/* Only show secondary dots that belong to the active group */
+.card-dot.secondary.visible {
+  display: block;
+}
+
+
+
+
 
 /* Visit badge pill on card front overlay */
 .exp-visit-badge {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.65rem;
+  background-color: var(--secondary);
   font-weight: 600;
-  color: #fff;
+  color: #000000;
   padding: 2px 8px;
   border-radius: 20px;
   margin-bottom: 4px;
   letter-spacing: 0.04em;
-  opacity: 0.92;
+  width: fit-content;
 }
 
 /* Visit context strip on card back */
@@ -1067,7 +1243,7 @@ select.form-control {
 
 textarea.form-control {
   resize: vertical;
-  min-height: 70px;
+  min-height: 100px;
   line-height: 1.5;
 }
 
@@ -1162,28 +1338,59 @@ textarea.form-control {
 }
 
 /* ── Visit Bar — Active ──────────────────────────────────── */
-.visit-bar {
-  background: var(--bg-card);
-  border: 1px solid var(--border-glow);
-  border-radius: 120px;
+.visit-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 5px;
-  padding-left: 20px !important;
-  width: 100%;
+  width: 90%;
   margin-bottom: 0.35rem;
+  align-self: center;
 }
 
-.visit-bar .btn {
+.visit-section.bar {
+  background: var(--secondary);
+  border-radius: 15px;
+  padding: 5px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 90%;
+  margin: 0.35rem 1rem;
+  align-self: center;
+}
+
+.new-visit-selector {
+  text-align: center;
+  flex-grow: 1;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #000;
+  outline: none;
+  box-shadow: none;
+}
+
+.new-visit-date {
+  border-left: 1px solid #000;
+  margin-left: 10px;
+  width: 50px;
+  height: 24px;
+  display: flex;
+  color: #000;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.visit-section .btn {
   border-radius: 120px;
   box-shadow: none !important;
 }
 
 .visit-bar-info {
   flex: 1;
-  color: #000;
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1194,22 +1401,22 @@ textarea.form-control {
   display: flex;
   align-items: center;
   gap: 0.1rem;
-  font-size: 2rem;
+  font-size: 1rem;
   font-weight: 700;
+  color: #000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-primary);
 }
 
 .visit-bar-meta {
   display: flex;
   flex-direction: row;
   align-items: center;
+  color: #000;
   gap: 0.4rem;
-  color: var(--text-muted);
   text-transform: capitalize;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
 }
 
 
@@ -1291,6 +1498,11 @@ textarea.form-control {
 }
 
 .welcome-subtitle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   font-size: 0.85rem;
   color: var(--text-muted);
   font-weight: 500;
@@ -1299,14 +1511,11 @@ textarea.form-control {
   text-transform: uppercase;
 }
 
-.loading-spinner-container {
-  margin-top: 1rem;
-}
 
 .loading-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3.5px solid hsla(0, 0%, 100%, 0.05);
+  width: 10px;
+  height: 10px;
+  border: 3px solid hsla(0, 0%, 100%, 0.05);
   border-top-color: var(--primary);
   border-right-color: var(--secondary);
   border-radius: 50%;
@@ -1338,8 +1547,9 @@ textarea.form-control {
 
 .expense-form-details .form-control {
   background: rgb(255, 255, 255);
-  color: black;
+  color: var(--primary);
   border: none !important;
+  padding-left: 20px;
   border-radius: 20px;
 }
 
@@ -1495,43 +1705,72 @@ textarea.form-control {
 
 
 .history-group-header {
+  position: relative;
   background: var(--bg-card);
   padding: 0.75rem 0.9rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 5px;
   cursor: pointer;
   user-select: none;
   transition: background var(--transition);
   height: auto;
+  overflow: visible;
 }
 
-
-
-.history-group-header:hover {
-  background: var(--bg-card-hover);
-}
 
 .group-title {
   display: flex;
   align-items: flex-start;
-  gap: 0.4rem;
   font-size: 0.92rem;
   flex-direction: column;
-  color: var(--text-primary);
+  color: var(--text-muted);
   transition: all 0.3s ease;
   flex: 1;
   min-width: 0;
   /* Crucial for text-overflow to work in flex children */
 }
 
-
-
 .history-group-header.open .group-title {
-  color: var(--primary);
-  flex-direction: row;
-  gap: 5px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.history-group-header.open .group-sum {
+  font-size: 1.1rem;
+  display: flex;
+}
+
+.history-group-footer {
+  background: var(--bg-card);
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: max-height 0.1s ease-in-out;
+  max-height: 0px;
+  opacity: 0;
+}
+
+.history-group-header.open~.history-group-footer {
+  display: flex;
+  max-height: 100px;
+  transition: max-height 0.1s ease-in-out;
+  padding: 0.75rem 0.9rem;
+  opacity: 1;
+}
+
+
+
+.group-sum {
+  font-size: 0;
+  font-weight: 800;
+  transition: all 0.3s ease;
+  margin-left: auto;
 }
 
 .visit-destination {
@@ -1539,14 +1778,15 @@ textarea.form-control {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  font-size: clamp(0.65rem, 3.5vw, 0.92rem);
   transition: font-size 0.3s ease;
 }
 
-.history-group-header.open .visit-destination {
+receipt-dummy-card .visit-destination {
   flex-grow: 1;
   flex-shrink: 1;
   /* Fluidly scales font down on small screens if space is tight */
-  font-size: clamp(0.65rem, 3.5vw, 0.92rem);
+
 }
 
 .group-status {
@@ -1573,10 +1813,17 @@ textarea.form-control {
   padding: 2px 8px;
 }
 
-.group-items {
+
+
+
+.history-group-header.open .group-meta {
+  display: none;
+}
+
+.group-meta {
   display: flex;
   font-size: 0.72rem;
-  color: var(--text-primary);
+  color: white;
   font-weight: 400;
   border-radius: 90px;
   border: 1px solid var(--border-glow);
@@ -1588,22 +1835,10 @@ textarea.form-control {
   transition: all 0.3s ease;
 }
 
-.history-group-header.open .group-items {
-  max-width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  opacity: 0;
-  border-color: transparent;
-  margin: 0;
-}
-
-.group-meta {
-  display: flex;
-  gap: 0.5rem;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
+.group-meta.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .history-group-content {
@@ -1617,15 +1852,17 @@ textarea.form-control {
 
 .history-group-content.open {
   max-height: 1500px;
-  /* reasonably large to fit contents */
   opacity: 1;
 }
 
 /* ── Log Item ────────────────────────────────────────────── */
 .log-item {
+  display: flex;
+  justify-content: center;
   position: relative;
   overflow: hidden;
   border-top: 1px solid var(--border-subtle);
+  padding: 5px 0;
 }
 
 .log-item-swipe-bg {
@@ -1670,59 +1907,7 @@ textarea.form-control {
   opacity: 1;
 }
 
-.log-item-header {
-  position: relative;
-  z-index: 1;
-  background: var(--bg-card);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 0.9rem;
-  cursor: pointer;
-  /* Follow finger exactly, plus morph transition */
-  max-height: 150px;
-  opacity: 1;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, transform 0s ease;
-}
 
-.swiping-back .log-item-header {
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, transform 0.3s ease;
-}
-
-.log-item-header:hover {
-  background: var(--bg-card-hover);
-}
-
-.log-item.expanded .log-item-header {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.log-item-details {
-  display: flex;
-  position: relative;
-  justify-content: space-evenly;
-  z-index: 1;
-  background: var(--bg-card);
-  gap: 0.5rem;
-  /* Morphing transition */
-  max-height: 0;
-  opacity: 0;
-  padding: 0 0.9rem;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-}
-
-.log-item.expanded .log-item-details {
-  max-height: 800px;
-  opacity: 1;
-  padding: 0.75rem 0.9rem;
-}
 
 .log-item-actions {
   display: flex;
@@ -1866,6 +2051,7 @@ textarea.form-control {
 }
 
 .log-badge {
+  display: none;
   font-size: 0.62rem;
   font-weight: 700;
   padding: 0.15rem 0.45rem;
@@ -1985,7 +2171,7 @@ textarea.form-control {
   background: var(--bg-card);
   border-radius: 100px;
   border: 1px solid var(--border-glow);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0rem;
   position: sticky;
   width: 100%;
   top: 0;
@@ -1999,18 +2185,28 @@ textarea.form-control {
 
 }
 
+/* Settings panels — fade + slide animation */
+.settings-panel {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: settingsPanelIn 0.22s ease both;
+}
 
-.switch-btn {
+
+.switch-btn,
+.settings-tab-btn {
   display: flex;
   position: relative;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  background: transparent;
   height: 40px;
   border: none;
-  background: var(--bg-card-hover);
   color: var(--text-muted);
-  padding: 5px;
+  padding: 5px 5px 5px 15px;
   flex-grow: 1;
+  font-size: 14px;
   border-radius: 120px;
   cursor: pointer;
   gap: 10px;
@@ -2023,7 +2219,6 @@ textarea.form-control {
   justify-content: center;
   height: 40px;
   width: 40px;
-  background: var(--bg-card-hover);
   color: var(--text-muted);
   padding: 5px;
   border-radius: 120px;
@@ -2032,47 +2227,105 @@ textarea.form-control {
 
 
 .switch-btn.active,
+.settings-tab-btn.active,
 .switch-btn-rnd.active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
 }
 
-#history-switcher .switch-btn .text {
+.filter-btn {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  font-size: 0.75rem;
-  font-weight: bold;
+  justify-content: center;
+  background: var(--secondary);
+  color: var(--text-muted);
+  padding: 5px;
+  border-radius: 120px;
+  cursor: pointer;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
 }
 
-#history-switcher .switch-btn.active .text {
-  color: white;
-
-}
 
 
 /* ── Filter Bar ─────────────────────────────────────────── */
 .pwa-list-filter-bar {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 0.5rem;
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  background: hsla(38, 95%, 55%, 0.1);
+  border: 1px solid hsla(38, 95%, 55%, 0.3);
+  border-radius: 15px;
+  font-size: 0.76rem;
+  color: hsl(38, 95%, 55%);
   flex-shrink: 0;
+  margin-bottom: 0.35rem;
+}
+
+.pwa-list-filter-bar.show {
+  display: flex;
+}
+
+.filter-select-case {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  border: 1px solid var(--border-glow);
+  border-radius: 10px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: width 0.5s ease;
+}
+
+/* Notice the period at the very beginning here! */
+.filter-select-case.grow {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.filter-select-case.active {
+  background: hsl(38, 95%, 55%);
+  border: 1px solid hsl(38, 95%, 55%);
+  color: #fff;
+}
+
+
+
+
+.filter-icon {
+  display: flex;
+  background: transparent;
+  height: 30px;
+  width: 30px;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+  padding: 5px;
 }
 
 .pwa-filter-select {
-  flex: 1;
-  border: 1px solid var(--border-glow);
-  border-radius: 13px;
-  height: 40px;
-  padding: 0.4rem 0.5rem;
-  background: var(--bg-card);
+  display: none;
+  background: transparent;
+  height: 100%;
+  border: none;
+  padding: 0 5px;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.9rem;
   text-align: center;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.pwa-filter-select.open {
+  display: flex;
+  width: auto;
 }
 
 .pwa-filter-select:focus {
@@ -2476,56 +2729,9 @@ textarea.form-control {
   object-fit: contain;
 }
 
-/* ── Settings 3-Tab Layout ───────────────────────────────── */
-.settings-tabs {
-  display: flex;
-  gap: 0.4rem;
-  padding: 0.4rem;
-  background: var(--bg-card);
-  border-radius: 100px;
-  border: 1px solid var(--border-glow);
-  margin-bottom: 0.25rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
 
-.settings-tab-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0.5rem 0.4rem;
-  background: transparent;
-  border: none;
-  border-radius: 100px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
-  white-space: nowrap;
-}
 
-.settings-tab-btn.active {
-  background: var(--primary);
-  color: #fff;
-}
 
-.settings-tab-btn:not(.active):hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-}
-
-/* Settings panels — fade + slide animation */
-.settings-panel {
-  display: none;
-  flex-direction: column;
-  gap: 0.75rem;
-  animation: settingsPanelIn 0.22s ease both;
-}
 
 .settings-panel.active {
   display: flex;
@@ -2877,8 +3083,8 @@ textarea.form-control {
   display: flex;
   flex-direction: column;
   background: hsl(200, 25%, 10%);
-  border: 1px solid hsla(161, 84%, 48%, 0.25);
-  border-left: 3px solid var(--secondary);
+  border: 1px solid var(--border-subtle);
+  border-right: 3px solid var(--secondary);
 }
 
 /* ── Once flip animation settles: back face drives layout ─── */
@@ -2901,10 +3107,7 @@ textarea.form-control {
   border-left-color: var(--primary);
 }
 
-.location-card.flippable:hover .loc-card-back {
-  border-color: hsla(161, 84%, 48%, 0.45);
-  border-left-color: var(--secondary);
-}
+
 
 /* Light mode overrides */
 [data-theme="light"] .loc-card-front {
@@ -3081,4 +3284,455 @@ textarea.form-control {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
+}
+
+/* ── Welcome Splash Icon ─────────────────────────────────── */
+.welcome {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-dark);
+  z-index: 9999;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.welcome-icon-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: none;
+  /* 0 8px 32px rgba(139, 92, 246, 0.45);
+  animation: welcome-pulse 1.8s ease-in-out infinite alternate;*/
+}
+
+.welcome-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.loading-spinner {
+  position: absolute;
+  bottom: 15px;
+  left: 12px;
+  width: 20px;
+  height: 20px;
+  border: 5px solid #f15157;
+  border-top-color: #ed1c24;
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+
+
+@keyframes welcome-pulse {
+  from {
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.35);
+    transform: scale(1);
+  }
+
+  to {
+    box-shadow: 0 12px 48px rgba(139, 92, 246, 0.65);
+    transform: scale(1.04);
+  }
+}
+
+.welcome-subtitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.active-visit {
+  width: 20px;
+  height: 20px;
+  border: 5px solid #036c42;
+  border-top-color: #000000;
+  border-bottom-color: #fff;
+  border-radius: 50%;
+  animation: spin 1.25s linear infinite;
+}
+
+
+
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Receipt-dummy: Flippable mini expense card ──────────── */
+/*
+  The receipt-dummy in the history/calendar list is restyled
+  as a small flippable card matching the main expense card.
+  Front: vendor / category / amount summary.
+  Back:  receipt image from Google Drive (full-bleed).
+*/
+.receipt-dummy-card {
+  position: relative;
+  width: 97%;
+  min-height: 180px;
+  perspective: 900px;
+  border-radius: 18px;
+  display: flex;
+  align-items: stretch;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.receipt-dummy-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.receipt-dummy-front,
+.receipt-dummy-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: inherit;
+  overflow: hidden;
+  min-height: 180px;
+}
+
+/* Front face — gradient card with vendor/amount info */
+.receipt-dummy-front {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1rem;
+  color: #fff;
+
+}
+
+/* Back face — receipt image fills the card */
+.receipt-dummy-back {
+  transform: rotateY(180deg);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.receipt-dummy-back-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.receipt-dummy-back-img.loaded {
+  opacity: 1;
+}
+
+.receipt-dummy-back-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 1rem;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Flip button on front face */
+.receipt-dummy-flip-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--primary);
+  z-index: 4;
+  transition: background var(--transition);
+  margin-left: auto;
+}
+
+.receipt-dummy-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Close button on back face */
+.receipt-dummy-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 5;
+  transition: background var(--transition);
+}
+
+.receipt-dummy-close-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+/* Info on the front face */
+.receipt-dummy-vendor {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: font-size 0.25s ease;
+}
+
+.receipt-dummy-amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+  line-height: 1;
+}
+
+
+.log-item .receipt-dummy-card {
+  min-height: 56px;
+  height: 56px;
+  margin-bottom: 0;
+  transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1), min-height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  cursor: pointer;
+}
+
+.log-item .receipt-dummy-card {
+  min-height: 56px;
+  height: 56px;
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), height 0.3s cubic-bezier(0.25, 1, 0.5, 1), min-height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.log-item .receipt-dummy-front,
+.log-item .receipt-dummy-back {
+  min-height: 56px;
+  height: 56px;
+  transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1), min-height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 0.5rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+
+/* Expanded state of log-item's card */
+.log-item.expanded .receipt-dummy-card {
+  min-height: 280px;
+  border-radius: var(--radius-card);
+  height: auto;
+}
+
+
+.log-item.expanded .receipt-dummy-front,
+.log-item.expanded .receipt-dummy-back {
+  height: auto;
+  padding: 0.9rem;
+  justify-content: flex-start;
+}
+
+
+
+
+
+
+/* List card header layout */
+.list-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.list-card-vendor-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.list-card-title-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.log-item.expanded .list-card-title-area {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+
+}
+
+.log-item.expanded .list-card-title-area .receipt-dummy-vendor {
+  font-size: 1.5rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.list-card-title-area .receipt-dummy-vendor {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.list-card-meta {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 1px;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.list-card-right-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  justify-content: center;
+}
+
+.list-card-expanded-content .receipt-dummy-amount {
+  font-size: 0;
+  transition: font-size 0.25s ease;
+}
+
+.log-item.expanded .list-card-expanded-content .receipt-dummy-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+
+
+}
+
+.list-card-right-area .receipt-dummy-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  transition: font-size 0.25s ease;
+}
+
+.log-item.expanded .list-card-right-area .receipt-dummy-amount {
+  font-size: 0;
+}
+
+.log-item.expanded .log-badge,
+.log-item.expanded .attachment-icon {
+  display: none;
+}
+
+.log-item.expanded .receipt-dummy-category {
+  font-size: 1.4rem;
+  transition: font-size 0.25s ease;
+}
+
+/* Hide / show expanded content */
+.list-card-expanded-content {
+  max-height: 0;
+  height: 100%;
+  opacity: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
+}
+
+.log-item.expanded .list-card-expanded-content {
+  max-height: 300px;
+  opacity: 1;
+  margin-top: 0.6rem;
+}
+
+/* Hide / show flip button */
+.log-item .receipt-dummy-flip-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.log-item.expanded .receipt-dummy-flip-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+/* Unified claimed/pending toggle button styles for history card actions */
+.action-btn.claim-toggle-btn.pending {
+  opacity: 0.45;
+  color: var(--text-muted);
+  border-color: var(--border-glow);
+  background: transparent;
+}
+
+.action-btn.claim-toggle-btn.claimed {
+  opacity: 1;
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: hsla(161, 84%, 48%, 0.12);
+}
+
+/* Unified claimed/pending toggle button styles for carousel overlay */
+.overlay-status-btn.claim-toggle-btn.pending {
+  opacity: 0.45;
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.overlay-status-btn.claim-toggle-btn.claimed {
+  opacity: 1;
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: hsla(161, 84%, 48%, 0.35);
+}
+
+.claim-toggle-btn:hover {
+  opacity: 0.85 !important;
 }

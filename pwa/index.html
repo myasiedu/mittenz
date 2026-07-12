@@ -11,9 +11,70 @@
   <meta name="theme-color" content="#16132a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="icons/favicon.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="icons/icon-192x192.png" type="image/png" sizes="192x192">
+  <link rel="icon" href="icons/icon-512x512.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="icons/icon-180x180.png">
+
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    href="/splash/splash-1290x2796.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    href="/splash/splash-2796x1290.png">
+
+  <!-- iPhone 16 Pro / 15 -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    href="/splash/splash-1179x2556.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    href="/splash/splash-2556x1179.png">
+
+  <!-- iPhone SE / 8 -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    href="/splash/splash-750x1334.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    href="/splash/splash-1334x750.png">
+
+  <!-- iPad Pro 13" -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    href="/splash/splash-2048x2732.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    href="/splash/splash-2732x2048.png">
+
+  <!-- iPad Pro 11" -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    href="/splash/splash-1668x2388.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    href="/splash/splash-2388x1668.png">
+
+  <!-- iPad Air -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    href="/splash/splash-1640x2360.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    href="/splash/splash-2360x1640.png">
+
+  <!-- iPad Mini -->
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    href="/splash/splash-1536x2048.png">
+  <link rel="apple-touch-startup-image"
+    media="screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    href="/splash/splash-2048x1536.png">
+
+
+
   <script src="lucide.js"></script>
   <script>
     window.onerror = function (msg, url, line, col, error) {
@@ -58,7 +119,17 @@
 
 
 
+    <!-- ACTIVE VISIT BAR -->
+    <section id="visit-bar">
 
+      <select id="visit-select-past" class="switch-btn"
+        style="display:none; text-align: center; width: calc(45% - 0.2rem); flex: 0 0 calc(45% - 0.2rem);"
+        onchange="app.selectPastVisit(this.value)" placeholder="OLD VISITS">
+      </select>
+
+
+
+    </section>
 
     <!-- ═══════════════════════════════════════════════════════
          TAB 1 — SYNC & LOGS
@@ -68,50 +139,73 @@
 
 
       <!-- HISTORY HEADER + VIEW SWITCHER -->
-      <div class="history-header">
-        <h2 id="normalHead" style="display:none; font-size: 0.5rem; color: var(--text-primary);">
 
 
-        </h2>
-        <!-- View Switcher -->
-        <div class="header-switch" id="history-switcher" role="group" aria-label="View mode">
-
-          <button class="switch-btn active" id="pwa-view-btn-list" aria-pressed="true" title="List view">
-            <svg data-lucide="list" width="15" height="15"></svg>
-            <span id="history-title-text" class="text" style="display:flex;">Visit List</span>
-          </button>
-          <button class="switch-btn" id="pwa-view-btn-cal" aria-pressed="false" title="Calendar view">
-            <svg data-lucide="calendar-days" width="15" height="15"></svg>
-            <span id="calender-title-text" class="text" style="display:flex;">Calendar</span>
-          </button>
+      <!-- View Switcher -->
+      <div class="header-switch" id="history-switcher" role="group" aria-label="View mode">
 
 
-
-          <div id="btn-archive-view" style="margin-left: auto;" class="switch-btn-rnd" title="View Archive"
-            aria-label="View Archive">
-            <svg id="icon-archive" data-lucide="archive" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            </svg>
-          </div>
-
+        <div id="filter-expenses" class="switch-btn-rnd" onclick="app._toggleFilter()">
+          <svg data-lucide="filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+          </svg>
         </div>
+        <button class="switch-btn active" id="pwa-view-btn-list">
+          <svg data-lucide="list" width="15" height="15"></svg>
+          <span id="history-title-text" class="text" style="display:flex;">Visit List</span>
+        </button>
+
+        <button class="switch-btn" id="pwa-view-btn-cal" aria-pressed="false" title="Calendar view">
+          <svg data-lucide="calendar-days" width="15" height="15"></svg>
+          <span id="calender-title-text" class="text" style="display:flex;">Calendar</span>
+        </button>
+
+        <button class="switch-btn" id="pwa-view-btn-loc" role="tab" aria-selected="false" aria-controls="pwa-view-loc">
+          <svg data-lucide="map-pin" width="15" height="15"></svg>
+          <span id="loc-title-text" class="text" style="display:none;">Location</span>
+        </button>
+
+
       </div>
+
+
 
       <!-- LIST VIEW -->
       <div id="pwa-view-list" style="display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
         <!-- Filter Bar -->
-        <div class="pwa-list-filter-bar">
-          <select id="pwa-filter-year" class="pwa-filter-select">
-            <option value="all">All Yrs</option>
-          </select>
-          <select id="pwa-filter-month" class="pwa-filter-select">
-            <option value="all">All Mos</option>
-          </select>
-          <select id="pwa-filter-status" class="pwa-filter-select">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="synced">Synced</option>
-          </select>
+        <div class="pwa-list-filter-bar" id="filter-bar">
+          <div class="filter-select-case grow">
+            <svg class="filter-icon" data-lucide="calendar-range" width="14" height="14"></svg>
+            <select id="pwa-filter-year" class="pwa-filter-select open"
+              style="border-right: 1px solid var(--border-glow);">
+              <option value="all">All Yrs</option>
+            </select>
+            <select id="pwa-filter-month" class="pwa-filter-select open">
+              <option value="all">All Mos</option>
+            </select>
+          </div>
+          <div class="filter-select-case">
+            <svg class="filter-icon" data-lucide="list-checks" width="14" height="14"></svg>
+            <select id="pwa-filter-status" class="pwa-filter-select">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="synced">Synced</option>
+            </select>
+          </div>
+
+          <div class="filter-select-case">
+            <svg class="filter-icon" data-lucide="map-pin" width="14" height="14"></svg>
+            <select id="pwa-filter-location" class="pwa-filter-select">
+              <option value="all">All Locations</option>
+            </select>
+          </div>
+
+
+          <div id="btn-archive-view" class="filter-select-case" title="View Archive" aria-label="View Archive">
+            <svg class="filter-icon" data-lucide="archive" width="14" height="14"></svg>
+            <div id="archive-view-text" class="pwa-filter-select">Archived Items</div>
+          </div>
+
         </div>
 
         <!-- SYNC PENDING BUTTON -->
@@ -163,6 +257,60 @@
         <div class="pwa-cal-grid" id="pwa-cal-grid"></div>
       </div>
 
+      <!-- ── Panel 2: Locations ─────────────────────────────── -->
+      <section id="pwa-view-loc" class="settings-panel" role="tabpanel" aria-labelledby="set-tab-locations">
+
+        <!-- Zone 1: Pinned Office Card (JS-rendered) -->
+        <div id="loc-office-slot"></div>
+
+        <!-- Scrollable container holding both the list of locations and the Add card -->
+        <div class="locations-scroll" id="locations-scroll-container">
+          <div id="locations-list" style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div class="empty-state">No locations yet.</div>
+          </div>
+
+          <!-- Zone 2: Pinned collapsible Add Location card (now at the bottom of the list) -->
+          <div class="location-card add" id="loc-add-card">
+            <div class="loc-add-header" onclick="app.toggleAddLocation()">
+              <svg data-lucide="map-pin-plus" width="15" height="15" style="color:currentColor; flex-shrink:0;"></svg>
+              <span>Add New Location</span>
+              <svg data-lucide="chevron-down" class="loc-chevron" width="14" height="14"
+                style="margin-left:auto; flex-shrink:0;"></svg>
+            </div>
+            <div class="loc-add-body" id="loc-add-body">
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="text" id="loc-name" class="form-control" placeholder="Location name…" style="flex:1;">
+              </div>
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="number" id="loc-lat" class="form-control" placeholder="Latitude" step="0.00001"
+                  style="flex:1;">
+                <input type="number" id="loc-lng" class="form-control" placeholder="Longitude" step="0.00001"
+                  style="flex:1;">
+
+                <button class="btn btn-outline" title="Use GPS" onclick="app.getDeviceGPS()"
+                  style="flex-shrink:0; padding:0 0.6rem;">
+                  <svg data-lucide="locate" width="15" height="15"></svg>
+                </button>
+              </div>
+
+              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
+                <input type="number" id="loc-radius" class="form-control" style="display:none;" placeholder="Radius (m)"
+                  step="10" min="50" value="100" style="flex:1;">
+                <select id="loc-category" class="form-control" style="flex:1;">
+                  <option value="visit">Visit</option>
+                  <option value="office">Office</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;" onclick="app.addLocationFromForm()">
+                Save Location
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
     </main>
 
     <!-- DAY POPUP OVERLAY (bottom sheet) -->
@@ -179,70 +327,16 @@
          TAB 2 — RECORD PAGE (EXPENSE FORM)
     ════════════════════════════════════════════════════════ -->
     <main id="tab-record" class="tab-content active" role="main" aria-label="Record expense"
-      style="scrollbar-width: none; height: 70%;">
-
-      <!-- ACTIVE VISIT BAR -->
-      <section id="visit-bar-active" class="header-switch">
-
-        <div class="visit-bar-info">
-          <span class="visit-bar-meta" id="vbar-date"></span>
-          <span class="visit-bar-dest" id="vbar-destination">Destination</span>
-
-          <span id="vbar-id"
-            style=" display:none; font-size:0.72rem; font-family:monospace; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 500; vertical-align: middle;"></span>
-          <span style="display: none;" id="vbar-status">Open</span>
-        </div>
-
-
-        <div class="switch-btn" style="background: var(--primary); color: white;" onclick="app.endVisit()"
-          id="btn-end-visit">
-          End Visit
-        </div>
-      </section>
-
-      <!-- NEW VISIT CARD (Start or Select) -->
-
-      <div id="new-visit" class="header-switch">
-        <select id="visit-select-past" class="switch-btn"
-          style="text-align: center; width: calc(45% - 0.2rem); flex: 0 0 calc(45% - 0.2rem);"
-          onchange="app.selectPastVisit(this.value)" placeholder="OLD VISITS">
-        </select>
-
-        <div id="start-new-visit" class="switch-btn active"
-          style="width: calc(55% - 0.2rem); flex: 0 0 calc(55% - 0.2rem); display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; position: relative;">
-          <select class="switch-btn active" id="visit-destination"
-            style="text-align: center; width: calc(100% - 30px); border: none; background: transparent; padding: 0; outline: none; box-shadow: none;"
-            onchange="app.startVisit()" placeholder="Start New Visit">
-          </select>
-
-          <!-- Calendar SVG (visibly replaces the date input) -->
-          <div class="calendar-trigger-btn"
-            style="cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            onclick="const d = document.getElementById('visit-date'); d.focus(); try { d.showPicker(); } catch(e) {}">
-            <svg width="15" height="15" stroke="white" stroke-width="2" data-lucide="calendar"></svg>
-          </div>
-
-          <!-- Hidden Date Input -->
-          <input type="date" id="visit-date"
-            style="position: absolute; right: 10px; opacity: 0; pointer-events: none; width: 24px; height: 24px; border: none; background: transparent; padding: 0;">
-        </div>
-
-        <div id="no-visit-container" style="margin-top: 2rem; padding-top: 1rem; display:none; width: 100%;">
-          <button type="button" class="btn btn-danger" style="width: 100%;" onclick="app.logAsOrphan()">
-            Log as "No Visit" (Orphan)
-          </button>
-        </div>
-
-      </div>
-
+      style="scrollbar-width: none; gap:5px">
 
 
 
       <!-- ─── EXPENSE CARD CAROUSEL ────────────────────────── -->
 
       <div id="card-carousel-wrapper">
-        <!-- Swipe hint dots -->
 
+        <!-- Swipe hint dots -->
+        <div id="group-dots"></div>
 
         <!-- scrollable track — cards injected here by JS -->
         <div id="card-track">
@@ -288,11 +382,15 @@
 
                 <!-- ─── EXPENSE DETAILS FORM ─────────────────────── -->
                 <form id="expense-form-details" onsubmit="app.saveExpense(event)" class="expense-form-details">
-
-                  <span id="expense-form-title">
-                    <svg class="form-close" onclick="app.expenseMode()" width="50" height="50" stroke="currentColor"
-                      stroke-width="2" data-lucide="x"></svg>
-                  </span>
+                  <div style="padding-left: 10px;">
+                    <div class="card-title" style="flex-grow: 0;font-size: 1rem; padding:0; opacity: 0.5; color:black">
+                      MANUAL ENTRY
+                    </div>
+                    <div id="expense-form-title" class="card-title"
+                      style="flex-grow: 0; font-size: 2rem;padding-top: 0; opacity: 0.8; color:black">
+                      Receipt
+                    </div>
+                  </div>
 
                   <input type="number" id="exp-amount" class="form-control" step="0.01" min="0"
                     placeholder="Receipt Amount: £0.00">
@@ -305,8 +403,7 @@
                     <option value="Other"> Other</option>
                   </select>
 
-                  <input type="text" id="exp-vendor" class="form-control"
-                    placeholder="Vendor / Merchant e.g. Shell, Costa Coffee">
+                  <input type="text" id="exp-vendor" class="form-control" placeholder="Vendor e.g. KFC">
 
                   <textarea id="exp-notes" class="form-control" rows="2" placeholder="Brief Note"></textarea>
 
@@ -316,10 +413,15 @@
                   </select>
 
                 </form>
+                <div class="photo-toggle" onclick="app.expenseMode()">
+                  <svg id="detail-toggle" class="camera" width="50" height="50" stroke="currentColor" stroke-width="2"
+                    data-lucide="camera"></svg>
 
-                <svg id="detail-toggle" class="photo-toggle" onclick="app.expenseMode()" width="50" height="50"
-                  stroke="currentColor" stroke-width="2" data-lucide="camera"></svg>
-
+                  <div class="aiText">
+                    <strong>AI</strong>
+                    <p>Assisted</p>
+                  </div>
+                </div>
               </div><!-- /.card-back -->
 
             </div><!-- /.card-inner -->
@@ -328,9 +430,7 @@
         </div><!-- /#card-track -->
 
 
-
       </div><!-- /#card-carousel-wrapper -->
-      <div id="card-dots"></div>
     </main>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -339,28 +439,23 @@
     <main id="tab-settings" class="tab-content" role="main" aria-label="Settings">
 
       <!-- Settings Tab Switcher -->
-      <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+      <div class="header-switch" role="tablist" aria-label="Settings sections">
         <button class="settings-tab-btn active" id="set-tab-link" role="tab" aria-selected="true"
           aria-controls="set-panel-link" onclick="app.switchSettingsTab('link')">
           <svg data-lucide="link" width="15" height="15"></svg>
           Google Link
         </button>
-        <button class="settings-tab-btn" id="set-tab-locations" role="tab" aria-selected="false"
-          aria-controls="set-panel-locations" onclick="app.switchSettingsTab('locations')">
-          <svg data-lucide="map-pin" width="15" height="15"></svg>
-          Locations
-        </button>
 
 
-        <button id="btn-theme-toggle" style="margin-left: auto;" class="switch-btn-rnd" title="Toggle theme"
-          aria-label="Toggle light/dark theme">
+
+        <div id="btn-theme-toggle" class="switch-btn-rnd" title="Toggle theme" aria-label="Toggle light/dark theme">
           <svg id="icon-moon" data-lucide="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
           </svg>
           <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" data-lucide="sun" stroke-linejoin="round" style="display:none;">
           </svg>
-        </button>
+        </div>
 
       </div>
 
@@ -416,59 +511,7 @@
 
       </section>
 
-      <!-- ── Panel 2: Locations ─────────────────────────────── -->
-      <section class="settings-panel" id="set-panel-locations" role="tabpanel" aria-labelledby="set-tab-locations">
 
-        <!-- Zone 1: Pinned Office Card (JS-rendered) -->
-        <div id="loc-office-slot"></div>
-
-        <!-- Scrollable container holding both the list of locations and the Add card -->
-        <div class="locations-scroll" id="locations-scroll-container">
-          <div id="locations-list" style="display: flex; flex-direction: column; gap: 0.45rem;">
-            <div class="empty-state">No locations yet.</div>
-          </div>
-
-          <!-- Zone 2: Pinned collapsible Add Location card (now at the bottom of the list) -->
-          <div class="location-card add" id="loc-add-card">
-            <div class="loc-add-header" onclick="app.toggleAddLocation()">
-              <svg data-lucide="map-pin-plus" width="15" height="15" style="color:currentColor; flex-shrink:0;"></svg>
-              <span>Add New Location</span>
-              <svg data-lucide="chevron-down" class="loc-chevron" width="14" height="14"
-                style="margin-left:auto; flex-shrink:0;"></svg>
-            </div>
-            <div class="loc-add-body" id="loc-add-body">
-              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-                <input type="text" id="loc-name" class="form-control" placeholder="Location name…" style="flex:1;">
-              </div>
-              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-                <input type="number" id="loc-lat" class="form-control" placeholder="Latitude" step="0.00001"
-                  style="flex:1;">
-                <input type="number" id="loc-lng" class="form-control" placeholder="Longitude" step="0.00001"
-                  style="flex:1;">
-
-                <button class="btn btn-outline" title="Use GPS" onclick="app.getDeviceGPS()"
-                  style="flex-shrink:0; padding:0 0.6rem;">
-                  <svg data-lucide="locate" width="15" height="15"></svg>
-                </button>
-              </div>
-
-              <div class="btn-row" style="gap:0.5rem; margin-bottom:0.4rem;">
-                <input type="number" id="loc-radius" class="form-control" style="display:none;" placeholder="Radius (m)"
-                  step="10" min="50" value="100" style="flex:1;">
-                <select id="loc-category" class="form-control" style="flex:1;">
-                  <option value="visit">Visit</option>
-                  <option value="office">Office</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <button class="btn btn-primary" style="width:100%;" onclick="app.addLocationFromForm()">
-                Save Location
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </section>
 
       <!-- ── Panel 3: Developer Console ─────────────────────── -->
       <section class="settings-panel" id="set-panel-dev" role="tabpanel" aria-labelledby="set-tab-dev"
@@ -480,11 +523,12 @@
 
     <section id="welcome" class="welcome">
       <div class="welcome-content">
-        <h1 class="welcome-title">Mittens</h1>
-        <p class="welcome-subtitle">Expense Copilot</p>
-        <div class="loading-spinner-container">
+        <div class="welcome-icon-wrap">
+          <img src="icons/icon-192x192.png" alt="Mittens" class="welcome-icon" width="96" height="96">
           <div class="loading-spinner"></div>
         </div>
+        <p class="welcome-subtitle">Mittens</p>
+
       </div>
     </section>
 

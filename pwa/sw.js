@@ -4,7 +4,7 @@ const ASSETS = [
   "styles.css",
   "app.js",
   "manifest.json",
-  "icons/3.png"
+  "icons/favicon.png"
 ];
 
 // Install Event
