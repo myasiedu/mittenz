@@ -176,6 +176,93 @@ class MavisExpenseApp {
   }
 
 
+  // ──────────────────────────────────────────────────────────
+  //  SERVICE WORKER REGISTRATION & UPDATE HANDLERS
+  // ──────────────────────────────────────────────────────────
+
+  registerSW() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+
+        // 1. Check if there's already an update waiting (e.g., from a previous session)
+        if (reg.waiting) {
+          this.showUpdateBanner(reg.waiting);
+        }
+
+        // 2. Listen for future updates that download while the app is currently running
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            // Only alert the user when the download completes and it enters 'installed' (waiting) state
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              this.showUpdateBanner(newWorker);
+            }
+          });
+        });
+
+      }).catch(err => {
+        this.log('Service Worker registration failed: ' + err.message);
+      });
+
+      // 3. When the new service worker takes over (activation), instantly reload the tab
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    }
+  }
+
+  showUpdateBanner(worker) {
+    // Safety guard to ensure we don't accidentally render multiple duplicate banners
+    if (document.getElementById('pwa-update-banner')) return;
+
+    // Create a toast notification dynamically and append it
+    const banner = document.createElement('div');
+    banner.id = 'pwa-update-banner';
+
+    // Inline styling designed to blend nicely with clean UI (dark theme friendly)
+    banner.style.position = 'fixed';
+    banner.style.bottom = '24px';
+    banner.style.left = '50%';
+    banner.style.transform = 'translateX(-50%)';
+    banner.style.backgroundColor = '#1e293b';
+    banner.style.color = '#f8fafc';
+    banner.style.padding = '14px 20px';
+    banner.style.borderRadius = '12px';
+    banner.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.4)';
+    banner.style.display = 'flex';
+    banner.style.alignItems = 'center';
+    banner.style.gap = '16px';
+    banner.style.zIndex = '99999';
+    banner.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    banner.style.border = '1px solid #334155';
+
+    banner.innerHTML = `
+      <span style="font-size: 14px; font-weight: 500;">A new update is ready!</span>
+      <button id="pwa-update-btn" style="
+        background-color: #3b82f6; 
+        color: white; 
+        border: none; 
+        padding: 6px 14px; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        font-weight: 600;
+        font-size: 13px;
+        transition: background-color 0.2s;
+      ">Update</button>
+    `;
+
+    document.body.appendChild(banner);
+
+    // Attach click handler to signal the service worker to install right away
+    document.getElementById('pwa-update-btn').addEventListener('click', () => {
+      worker.postMessage({ action: 'skipWaiting' });
+    });
+  }
+
+
   _getDirectDriveUrl(url) {
     if (!url) return null;
     if (url.includes('/uc?') || url.startsWith('data:')) return url;

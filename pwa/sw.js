@@ -1,5 +1,6 @@
 const CACHE_NAME = "mavis-expense-v1";
 const ASSETS = [
+  "/",                 // <-- Added: Crucial for bare URL offline fallback
   "index.html",
   "styles.css",
   "app.js",
@@ -15,7 +16,7 @@ self.addEventListener("install", (e) => {
       return cache.addAll(ASSETS);
     })
   );
-  self.skipWaiting();
+  // REMOVED: self.skipWaiting() has been deleted from here
 });
 
 // Activate Event
@@ -37,7 +38,6 @@ self.addEventListener("activate", (e) => {
 
 // Fetch Event (Network-first with Cache fallback)
 self.addEventListener("fetch", (e) => {
-  // Only handle GET requests and local/http schemes
   if (e.request.method !== "GET" || !e.request.url.startsWith(self.location.origin)) {
     return;
   }
@@ -45,7 +45,6 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        // Cache the fresh resource
         const clone = res.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(e.request, clone);
@@ -53,8 +52,14 @@ self.addEventListener("fetch", (e) => {
         return res;
       })
       .catch(() => {
-        // Fallback to cache if network is unavailable
         return caches.match(e.request);
       })
   );
+});
+
+// NEW: Add message listener to safely force-install updates when requested by the UI
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.action === "skipWaiting") {
+    self.skipWaiting();
+  }
 });
