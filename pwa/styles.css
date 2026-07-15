@@ -682,7 +682,8 @@ body {
   z-index: 2;
 }
 
-.card-back {
+.card-back,
+.card-edit {
   /* Change 'background' to 'background-color' to avoid wiping out the JS image */
   background-color: var(--bg-card);
 

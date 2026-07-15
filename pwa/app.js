@@ -281,7 +281,6 @@ class MavisExpenseApp {
 
     const url = this.settings?.webappUrl;
     const token = this.settings?.secretKey;
-    const main = document.getElementById('fab-circle');
     const rightNav = document.getElementById('right-nav-btn');
 
 
@@ -1243,12 +1242,16 @@ class MavisExpenseApp {
   async loadLocations() {
     const { webappUrl: url, secretKey: token } = this.settings;
 
-    // Always seed from local defaults first so the selector is never empty
+    // 1. Always seed from local defaults first so the selector is never empty
     const localPlaces = this.settings.frequentPlaces?.length
       ? this.settings.frequentPlaces
       : this.defaultFrequentPlaces;
     this.locations = localPlaces;
     this._populateDestSel(localPlaces);
+
+    // FIX #1: Instantly recalculate distances for your cached offline places 
+    // so distances are accurate even when starting the app with no internet.
+    this.recalculateDistances();
 
     // Then try to fetch from backend and override
     if (url) {
@@ -1266,7 +1269,7 @@ class MavisExpenseApp {
           });
 
           this.settings.frequentPlaces = this.locations;
-          this.recalculateDistances();
+          this.recalculateDistances(); // Recalculate again with fresh online coordinates
           localStorage.setItem('mavis_settings', JSON.stringify(this.settings));
           this._populateDestSel(this.locations);
           this.log(`Locations loaded from sheet: ${this.locations.length}`);
@@ -1274,6 +1277,13 @@ class MavisExpenseApp {
       } catch (_) {
         this.log('Locations fetch failed — using local defaults.');
       }
+    }
+
+    // FIX #2: Refresh the active visit bar now that locations are loaded.
+    // This resolves the race condition in init() by instantly swapping out
+    // the "Unknown" placeholder with the actual destination name.
+    if (typeof this._renderVisitBar === 'function') {
+      this._renderVisitBar();
     }
 
     // Refresh the locations panel if it's currently visible
@@ -1799,37 +1809,45 @@ class MavisExpenseApp {
   }
 
   // ── Card Flip Helper ──
-  flipCard(idx, toBack) {
+  flipCard(idx, targetFace) {
     const cardInner = document.getElementById(`card-inner-${idx}`);
     if (!cardInner) return;
 
-    const backFace = cardInner.querySelector('.card-back');
+    const backFace = document.getElementById(`card-back-${idx}`);
+    const editFace = document.getElementById(`card-edit-${idx}`);
     const overlay = document.getElementById(`receipt-state-${idx}`);
     const statusMsg = overlay?.querySelector('.status-msg');
 
-    if (toBack) {
+    // ==========================================
+    // STATE 1: Return to Front
+    // ==========================================
+    if (targetFace === 'front') {
+      cardInner.classList.remove('flipped');
+
+      // Delay resetting display so it doesn't snap abruptly mid-flip
+      setTimeout(() => {
+        if (backFace) backFace.style.display = 'none';
+        if (editFace) editFace.style.display = 'none';
+      }, 400); // Match this timing to your CSS transition duration
+    }
+
+    // ==========================================
+    // STATE 2: Show Image (Back)
+    // ==========================================
+    else if (targetFace === 'back') {
+      if (backFace) backFace.style.display = 'block';
+      if (editFace) editFace.style.display = 'none';
+
       const expenseData = this._cardExpenses[idx];
 
-      // DEBUG: Show raw data on the UI
-      if (overlay && statusMsg) {
-        overlay.style.display = 'flex';
-        const debugUrl = expenseData?.receipt_url || 'No URL Found';
-        const noURL = debugUrl.includes('No URL Found');
-        statusMsg.innerHTML = `
-        ${noURL ? 'No Image found!' : `
-        <div style="font-size: 10px; word-break: break-all; margin-bottom: 5px;">
-          URL: ${debugUrl}
-        </div>
-         
-         <div id="status-text-${idx}">Loading receipt...</div>`}
-        `;
-        //console.log(`Debug [Card ${idx}] Raw URL:`, expenseData?.receipt_url);
-      }
-
+      // Handle Image Loading
       if (expenseData?.receipt_url) {
-        const directUrl = this._getDirectDriveUrl(expenseData.receipt_url);
-        console.log(`Debug [Card ${idx}] Converted URL:`, directUrl);
+        if (overlay && statusMsg) {
+          overlay.style.display = 'flex';
+          statusMsg.innerHTML = `<div id="status-text-${idx}">Loading receipt...</div>`;
+        }
 
+        const directUrl = this._getDirectDriveUrl(expenseData.receipt_url);
         const img = new Image();
         const statusText = document.getElementById(`status-text-${idx}`);
 
@@ -1839,16 +1857,34 @@ class MavisExpenseApp {
         };
 
         img.onerror = () => {
-          if (statusText) statusText.textContent = 'Error: Failed to load (CORS/Permission)';
-          console.error(`Debug [Card ${idx}] Failed to load:`, directUrl);
+          if (statusText) statusText.textContent = 'Error: Failed to load image.';
           setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 3000);
         };
 
         img.src = directUrl;
       }
+
+      cardInner.classList.add('flipped');
     }
 
-    cardInner.classList.toggle('flipped', toBack);
+    // ==========================================
+    // STATE 3: Show Edit Form
+    // ==========================================
+    else if (targetFace === 'edit') {
+      if (backFace) backFace.style.display = 'none';
+      if (editFace) editFace.style.display = 'block';
+      cardInner.classList.add('flipped');
+    }
+  }
+
+  editCard(idx) {
+    // Tell the app which record is currently being edited
+    const exp = this._cardExpenses[idx];
+    if (exp) {
+      this.editingExpenseId = exp.id;
+    }
+    // Trigger the flip to the edit face
+    this.flipCard(idx, 'edit');
   }
 
 
@@ -1955,85 +1991,128 @@ class MavisExpenseApp {
 
         const card = document.createElement('div');
         card.className = 'expense-card';
+        card.id = `expense-card-${cardIdx}`;
+        card.dataset.index = cardIdx;
         card.setAttribute('data-card-index', cardIdx);
         card.setAttribute('data-expense-id', exp.id);
 
-        const imgUrl = exp.receipt_url || exp.image_base64 || '';
-        const imageHtml = imgUrl
-          ? `<img src="${imgUrl}" class="expense-card-img" onload="this.classList.add('loaded')" onerror="this.classList.add('error')" alt="Receipt">`
-          : '';
+
 
         const isActive = group.id === this.activeVisit?.id;
         const visitBadge = `<span class="exp-visit-badge" style="background:${group.color}">${isActive ? 'Current Visit' : formatDateFriendly(group.date)}</span>`;
         const gradient = this._visitGradient(group.colorIdx);
         const vendorInitial = (exp.vendor || 'N').charAt(0).toUpperCase();
+        const imgUrl = exp.receipt_url || exp.image_base64 || '';
+        const isZero = exp.amount === 0;
+        const imageHtml = imgUrl
+          ? `<img src="${imgUrl}" class="expense-card-img" onload="this.classList.add('loaded')" onerror="this.classList.add('error')" alt="Receipt">`
+          : '';
         const notesHtml = exp.notes
           ? `<div class="fallback-notes-bubble" style="border-left-color:${group.color}">
           <div class="fallback-category-pill" style="border-color:${group.color}80;color:${group.color};">${exp.category || 'Other'}</div>
           “${exp.notes}”</div>` : '';
 
         card.innerHTML = `
-        <div class="card-inner" id="card-inner-${cardIdx}">
-          <div class="card-face card-front" style="border:2.5px solid ${group.color};background:${gradient};">
-            ${imageHtml}
-            <div class="fallback-card-content">
-              <div class="fallback-card-header">
-                <div class="fallback-vendor-circle" style="background:${group.color};border:1.5px solid ${group.color};color:white;">${vendorInitial}</div>    
-                <div class="fallback-vendor-large">${exp.vendor || 'No Vendor'}</div> 
-              </div>
-              <div class="fallback-card-header">
-                <div class="card-title" style="flex-grow: 0;font-size: 1rem; padding:0;">Receipt</div>  
-                <div class="fallback-date-badge" style="color:${group.color}; margin-left:auto">
-                  <svg data-lucide="calendar" width="12" height="12"></svg>
-                  <span>${formatDateFriendly(exp.date)}</span>
-                </div>
-              </div>
-                  
-              <div class="fallback-card-body">
-                ${notesHtml}
-                <div class="fallback-amount-large">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
-              </div>
-              
-              <div class="fallback-card-footer">
-                <div class="card-dots-container" style="display: flex; gap: 6px; justify-content: flex-start; width: 100%;">
-                  ${groupDotsHtml}
-                </div>
-              </div>
-
-              <div class="expense-btn-row">
+  <div class="card-inner" id="card-inner-${cardIdx}">
     
-              <div class="eCardBtn" onclick=""><svg data-lucide="pencil"  ></svg></div>
-              <div class="eCardBtn" onclick="${imgUrl ? `app.flipCard(${cardIdx}, true)` : ``}">
-                ${imgUrl ? ` <svg data-lucide="image"></svg>`
-            : `<svg data-lucide="camera"></svg>`}
-              </div>
-
-              </div>
-            </div>
+    <div class="card-face card-front" style="border:2.5px solid ${group.color}; background:${gradient};">
+      ${imageHtml}
+      <div class="fallback-card-content">
+        <div class="fallback-card-header">
+          <div class="fallback-vendor-circle" style="background:${group.color};border:1.5px solid ${group.color};color:white;">${vendorInitial}</div>    
+          <div class="fallback-vendor-large">${exp.vendor || 'No Vendor'}</div> 
+        </div>
+        
+        <div class="fallback-card-header">
+          <div class="card-title" style="flex-grow: 0;font-size: 1rem; padding:0;">Receipt</div>  
+          <div class="fallback-date-badge" style="color:${group.color}; margin-left:auto">
+            <svg data-lucide="calendar" width="12" height="12"></svg>
+            <span>${formatDateFriendly(exp.date)}</span>
           </div>
-
-          <div class="card-face card-back" id="card-back-${cardIdx}" style="border:1px solid ${group.color};">
-            <div class="receipt-state-overlay" id="receipt-state-${cardIdx}" style="position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10;">
-              <span class="status-msg" style="color: white;"></span>
-            </div>
-
-            <div class="expense-card-detail-back" style="display:none"></div>
-
-              
-           
+        </div>
             
-
-            <div class="expense-card-overlay">
-              <div class="expense-card-vendor">${exp.vendor || 'No Vendor'}</div>
-              <div class="expense-card-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
-              ${visitBadge}
-            </div>
-            <div class="expense-btn-row">
-              <div class="eCardBtn" onclick=""><svg data-lucide="pencil"  ></svg></div>
-              <div class="eCardBtn" onclick="app.flipCard(${cardIdx}, false)"><svg data-lucide="info"  ></svg></div>
-            </div>
+        <div class="fallback-card-body">
+          ${notesHtml}
+          <div class="fallback-amount-large">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+        </div>
+        
+        <div class="fallback-card-footer">
+          <div class="card-dots-container" style="display: flex; gap: 6px; justify-content: flex-start; width: 100%;">
+            ${groupDotsHtml}
           </div>
-        </div>`;
+        </div>
+
+        <div class="expense-btn-row">
+          <div class="eCardBtn" onclick="app.editCard(${cardIdx})" title="Edit Expense">
+            <svg data-lucide="pencil"></svg>
+          </div>
+          <div class="eCardBtn" onclick="${imgUrl ? `app.flipCard(${cardIdx}, 'back')` : ``}" title="View Image">
+            ${imgUrl ? `<svg data-lucide="image"></svg>` : `<svg data-lucide="camera"></svg>`}
+          </div>
+            ${isZero ? `<div class="eCardBtn" onclick="app.deleteCard(${cardIdx})">
+            <svg data-lucide="trash-2"></svg>
+          </div>`: ``}
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card-face card-back" id="card-back-${cardIdx}" style="border:1px solid ${group.color}; display: none;">
+      <div class="receipt-state-overlay" id="receipt-state-${cardIdx}" style="position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 10;">
+        <span class="status-msg" style="color: white;"></span>
+      </div>
+
+      <div class="expense-card-overlay">
+        <div class="expense-card-vendor">${exp.vendor || 'No Vendor'}</div>
+        <div class="expense-card-amount">£${parseFloat(exp.amount || 0).toFixed(2)}</div>
+        ${visitBadge}
+      </div>
+      
+      <div class="expense-btn-row">
+        <div class="eCardBtn" onclick="app.editCard(${cardIdx})" title="Edit Expense">
+          <svg data-lucide="pencil"></svg>
+        </div>
+        <div class="eCardBtn" onclick="app.flipCard(${cardIdx}, 'front')" title="Back to Info">
+          <svg data-lucide="info"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-face card-edit" id="card-edit-${cardIdx}" style="border:1px solid ${group.color}; background: white; display: none;">
+      <form id="expense-form-details-${cardIdx}" onsubmit="app.saveExpense(event, ${cardIdx})" class="expense-form-details" style="padding: 15px; height: 100%; display: flex; flex-direction: column;">
+        
+        <div>
+          <div class="card-title" style="flex-grow: 0;font-size: 1rem; padding:0; opacity: 0.5; color:black">EDIT ENTRY</div>
+          <div class="card-title" style="flex-grow: 0; font-size: 2rem;padding-top: 0; opacity: 0.8; color:black">Receipt</div>
+        </div>
+
+        <input type="number" id="exp-amount-${cardIdx}" class="form-control" step="0.01" min="0" placeholder="Amount: £0.00" value="${exp.amount || ''}">
+
+        <select id="exp-category-${cardIdx}" class="form-control" required>
+          <option value="Snacks" ${exp.category === 'Snacks' ? 'selected' : ''}> Snacks</option>
+          <option value="Fuel" ${exp.category === 'Fuel' ? 'selected' : ''}> Fuel</option>
+          <option value="Hotel" ${exp.category === 'Hotel' ? 'selected' : ''}> Hotel / Accommodation</option>
+          <option value="Tolls" ${exp.category === 'Tolls' ? 'selected' : ''}> Tolls / Parking</option>
+          <option value="Other" ${exp.category === 'Other' ? 'selected' : ''}> Other</option>
+        </select>
+
+        <input type="text" id="exp-vendor-${cardIdx}" class="form-control" placeholder="Vendor e.g. KFC" value="${exp.vendor || ''}">
+
+        <textarea id="exp-notes-${cardIdx}" class="form-control" rows="2" placeholder="Brief Note">${exp.notes || ''}</textarea>
+
+        <select id="log-select-visit-${cardIdx}" class="form-control linked-visit-row">
+          <option value="${exp.visit_id || ''}">${exp.visit_id ? 'Keep Current Visit' : '-- Select a visit --'}</option>
+        </select>
+
+        <div class="expense-btn-row" style="margin-top: auto;">
+          <button type="button" class="btn btn-secondary" onclick="app.flipCard(${cardIdx}, 'front')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+  </div>`;
+
         track.appendChild(card);
       });
     });
@@ -2578,7 +2657,7 @@ class MavisExpenseApp {
 
     const category = document.getElementById('exp-category').value;
     const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
-    const vendor = (document.getElementById('exp-vendor').value || '').trim() || 'Manual Entry';
+    const vendor = (document.getElementById('exp-vendor').value || '').trim();
     const notes = (document.getElementById('exp-notes').value || '').trim();
 
     const selVisit = document.getElementById('log-select-visit');
